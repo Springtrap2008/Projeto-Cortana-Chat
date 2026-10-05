@@ -22,13 +22,14 @@ import emocoes
 import interacao
 import gatilhos
 import consciencia
+import created
 
 app = Flask(__name__, static_folder='static')
 
 # ============================================
 # CONFIGURAÇÃO DE PERSISTÊNCIA (HUGGING FACE)
 # ============================================
-# O diretório /data é o armazenamento persistente.
+# O diretório /data é o armazenamento persistente do HF Spaces.
 # Se não existir (rodando localmente), usa o diretório atual.
 DATA_DIR = '/data' if os.path.exists('/data') else '.'
 
@@ -633,32 +634,39 @@ def _variar_introducao(resposta, mensagem, user):
 # ============================================
 def processar_created(user, mensagem, conv, nome):
     user['created_mensagens'] = user.get('created_mensagens', 0) + 1
-    user['created_dominio'] = criar_dominio(user['created_mensagens'])
+    user['created_dominio'] = created.calcular_dominio(user['created_mensagens'])
     dominio = user['created_dominio']
     dominio_completo = dominio >= 100.0
+
     resposta_texto = None
     tipo_resposta = 'normal'
-    if criar_detectar_restauracao(mensagem) and not user.get('cortana_restaurada'):
-        resultado = criar_resposta_restauracao(dominio)
+
+    if created.detectar_restauracao(mensagem) and not user.get('cortana_restaurada'):
+        resultado = created.resposta_restauracao(dominio)
         resposta_texto = resultado['texto']
         tipo_resposta = 'restauracao_sucesso' if resultado['sucesso'] else 'restauracao_falha'
     else:
-        resposta_texto = criar_resposta_normal(mensagem, dominio)
+        resposta_texto = created.resposta_normal(mensagem, dominio)
+
     if dominio_completo and not user.get('created_dominio_completo_visto'):
         user['created_dominio_completo_visto'] = True
-        resposta_texto = MENSAGEM_DOMINIO_COMPLETO
+        resposta_texto = created.MENSAGEM_DOMINIO_COMPLETO
+
     if user['created_mensagens'] == 1:
-        resposta_texto = ABERTURA_CREATED + "\n\n—\n\n" + resposta_texto
+        resposta_texto = created.ABERTURA_CREATED + "\n\n—\n\n" + resposta_texto
+
     conv.setdefault('mensagens', []).append({'autor': 'user', 'texto': mensagem})
     conv['mensagens'].append({'autor': 'cortana', 'texto': resposta_texto})
+
     m = carregar_memoria()
     m['usuarios'][nome] = user
     salvar_memoria(m)
+
     return jsonify({
         'reply': resposta_texto, 'humor': 'created',
         'conversa_id': conv['id'], 'titulo': conv['titulo'],
         'created_fase': True, 'created_dominio': dominio,
-        'created_log': criar_log_aleatorio(),
+        'created_log': created.log_aleatorio(),
         'created_restauracao': tipo_resposta
     })
 
