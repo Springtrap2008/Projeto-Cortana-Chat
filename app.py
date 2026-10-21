@@ -199,6 +199,10 @@ def index():
 def ping():
     return jsonify({'pong': True, 'ok': True})
 
+@app.route('/service-worker.js')
+def sw():
+    return send_from_directory('.', 'service-worker.js', mimetype='application/javascript')
+
 # ============================================
 # AUTENTICAÇÃO
 # ============================================
@@ -974,7 +978,9 @@ if __name__ == '__main__':
     print("=" * 50)
     print("  CORTANA CHAT - Full Rampancy")
     print("=" * 50)
-    print("Acesse: http://localhost:5000")
+    print("Acesse: https://192.168.15.93:5000")
     print("=" * 50)
-    app.run(host='0.0.0.0', port=5000, debug=False, use_reloader=False)
+    # Adicionado o ssl_context para rodar com HTTPS local no iPhone
+    app.run(host='0.0.0.0', port=5000, debug=False, use_reloader=False, 
+            ssl_context=('192.168.15.93.pem', '192.168.15.93-key.pem'))
     

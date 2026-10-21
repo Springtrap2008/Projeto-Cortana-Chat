@@ -5,6 +5,12 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Cortana - Lore de Halo</title>
   <link rel="stylesheet" href="/static/style.css">
+  
+  <!-- PWA / iOS -->
+  <link rel="manifest" href="/static/manifest.json">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <link rel="apple-touch-icon" href="/static/icon-192.png">
 </head>
 <body data-humor="calma">
 
@@ -235,5 +241,16 @@
   </div>
 
   <script src="/static/script.js"></script>
+  
+  <!-- PWA Service Worker -->
+  <script>
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => {
+        navigator.serviceWorker.register('/service-worker.js')
+          .then(reg => console.log('Service Worker da Cortana registrado!'))
+          .catch(err => console.log('Falha no Service Worker:', err));
+      });
+    }
+  </script>
 </body>
 </html>
