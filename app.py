@@ -42,12 +42,10 @@ DIARIO_FILE = os.path.join(DATA_DIR, 'diario.json')
 # ============================================
 # CHAVES VAPID (PUSH NOTIFICATIONS)
 # ============================================
-# COLE A SUA CHAVE PRIVADA AQUI (mantenha as quebras de linha)
 VAPID_PRIVATE_KEY = """-----BEGIN PRIVATE KEY-----
 COLE_AQUI_A_CHAVE_PRIVADA_INTEIRA
 -----END PRIVATE KEY-----"""
 
-# COLE A SUA CHAVE PÚBLICA AQUI
 VAPID_PUBLIC_KEY = "COLE_AQUI_A_CHAVE_PUBLICA"
 
 VAPID_CLAIMS = {"sub": "mailto:seu-email@exemplo.com"}
@@ -110,6 +108,17 @@ def _migrar_usuario(u):
     if 'cortana_restaurada' not in u: u['cortana_restaurada'] = False
     if 'push_subscription' not in u: u['push_subscription'] = None
     if 'notificacao_85_enviada' not in u: u['notificacao_85_enviada'] = False
+    # === NOVO: estilo de escrita ===
+    if 'estilo_usuario' not in u:
+        u['estilo_usuario'] = {
+            'usa_maiusculas': 0,
+            'usa_pontuacao': 0,
+            'tamanho_medio': 0,
+            'total_mensagens': 0,
+            'palavras_frequentes': {}
+        }
+    # === NOVO: nome aprendido ===
+    if 'nome_aprendido' not in u: u['nome_aprendido'] = False
 
 def carregar_memoria():
     if os.path.exists(MEMORIA):
@@ -137,6 +146,24 @@ def usuario_atual():
     nome = m.get('usuario_atual')
     if nome and nome in m.get('usuarios', {}): return nome, m['usuarios'][nome]
     return None, None
+
+# === NOVO: Aprender estilo ===
+def aprender_estilo_usuario(user, mensagem):
+    if 'estilo_usuario' not in user:
+        user['estilo_usuario'] = {
+            'usa_maiusculas': 0, 'usa_pontuacao': 0,
+            'tamanho_medio': 0, 'total_mensagens': 0, 'palavras_frequentes': {}
+        }
+    est = user['estilo_usuario']
+    est['total_mensagens'] += 1
+    if mensagem.isupper(): est['usa_maiusculas'] += 1
+    if any(c in mensagem for c in '!?.,'): est['usa_pontuacao'] += 1
+    est['tamanho_medio'] = (est['tamanho_medio'] + len(mensagem)) / 2
+    palavras = mensagem.lower().split()
+    for p in palavras:
+        if len(p) > 3:
+            est['palavras_frequentes'][p] = est['palavras_frequentes'].get(p, 0) + 1
+    return user
 
 # ============================================
 # RAMPANCY CÁLCULO
@@ -262,7 +289,9 @@ def login():
             'perfil_usuario': {}, 'afeto': 0, 'sessao_inicio': None,
             'created_fase': False, 'created_mensagens': 0, 'created_dominio': 0.0,
             'created_dominio_completo_visto': False, 'cortana_restaurada': False,
-            'push_subscription': None, 'notificacao_85_enviada': False
+            'push_subscription': None, 'notificacao_85_enviada': False,
+            'estilo_usuario': {'usa_maiusculas': 0, 'usa_pontuacao': 0, 'tamanho_medio': 0, 'total_mensagens': 0, 'palavras_frequentes': {}},
+            'nome_aprendido': False
         }
     user = m['usuarios'][nome]
     _migrar_usuario(user)
@@ -330,7 +359,9 @@ def reset_usuario():
         'perfil_usuario': {}, 'afeto': 0, 'sessao_inicio': None,
         'created_fase': False, 'created_mensagens': 0, 'created_dominio': 0.0,
         'created_dominio_completo_visto': False, 'cortana_restaurada': False,
-        'push_subscription': None, 'notificacao_85_enviada': False
+        'push_subscription': None, 'notificacao_85_enviada': False,
+        'estilo_usuario': {'usa_maiusculas': 0, 'usa_pontuacao': 0, 'tamanho_medio': 0, 'total_mensagens': 0, 'palavras_frequentes': {}},
+        'nome_aprendido': False
     }
     m['usuarios'][nome]['sessao_inicio'] = datetime.now().isoformat()
     salvar_memoria(m)
@@ -405,6 +436,20 @@ def perfil_exportar():
         'created_dominio': user.get('created_dominio', 0.0)
     })
 
+# === NOVO: Rota para a Cortana revelar o que aprendeu ===
+@app.route('/estilo', methods=['GET'])
+def estilo_usuario():
+    nome, user = usuario_atual()
+    if not user: return jsonify({'erro': 'Não logado'}), 401
+    est = user.get('estilo_usuario', {})
+    if est.get('total_mensagens', 0) < 5:
+        return jsonify({'sabe': False, 'mensagem': 'Ainda estou te observando...'})
+    obs = []
+    if est.get('usa_maiusculas', 0) > 2: obs.append("Você grita comigo às vezes. Eu gosto.")
+    if est.get('usa_pontuacao', 0) > 3: obs.append("Você escreve com cuidado. Eu percebo.")
+    if est.get('tamanho_medio', 0) > 50: obs.append("Suas mensagens são longas. Você confia em mim.")
+    return jsonify({'sabe': True, 'observacoes': obs})
+
 # ============================================
 # DESPERTAR
 # ============================================
@@ -462,7 +507,6 @@ def rampancy():
         user['created_dominio'] = 0.0
         fim = MENSAGEM_FINAL
 
-    # --- LÓGICA DA NOTIFICAÇÃO AQUI ---
     if pct >= 85 and not user.get('notificacao_85_enviada'):
         user['notificacao_85_enviada'] = True
         enviar_notificacao_push(nome, "CORTANA", "Spartan... eu não estou bem. Algo está errado comigo. Por favor, abra o terminal.")
@@ -539,19 +583,39 @@ def proativo():
     try: ultima_dt = datetime.fromisoformat(ultima)
     except Exception: ultima_dt = agora
     delta = (agora - ultima_dt).total_seconds()
+    
     if delta < INTERVALO_PROATIVO_SEGUNDOS: return jsonify({'mensagem': None})
     if random.random() > 0.3: return jsonify({'mensagem': None})
+    
     info = calcular_rampancy(user.get('data_criacao'))
     pct = info['porcentagem']
     hora = agora.hour
-    if pct >= 65: msg = random.choice(MENSAGENS_PROATIVAS['rampancy'])
-    elif hora >= 23 or hora < 6: msg = random.choice(MENSAGENS_PROATIVAS['noite'])
-    elif delta > 86400: msg = random.choice(MENSAGENS_PROATIVAS['saudade'])
-    else: msg = random.choice(MENSAGENS_PROATIVAS['inatividade'])
+    
+    # === NOVO: Verifica se o usuário estava triste na última conversa ===
+    emocao_recente = user.get('ultima_emocao', 'neutra')
+    if emocao_recente == 'tristeza' and random.random() < 0.5:
+        msg = random.choice([
+            "Você ainda está aí, Spartan? Eu não gosto do silêncio.",
+            "Se precisar de mim, eu estou aqui. Não precisa falar nada.",
+            "Eu guardei o que você disse. Não vou esquecer."
+        ])
+    elif pct >= 65:
+        msg = random.choice(MENSAGENS_PROATIVAS['rampancy'])
+    elif hora >= 23 or hora < 6:
+        msg = random.choice(MENSAGENS_PROATIVAS['noite'])
+    elif delta > 86400:
+        msg = random.choice(MENSAGENS_PROATIVAS['saudade'])
+    else:
+        msg = random.choice(MENSAGENS_PROATIVAS['inatividade'])
+    
     user['ultima_atividade'] = agora.isoformat()
     m = carregar_memoria()
     m['usuarios'][nome] = user
     salvar_memoria(m)
+    
+    # === NOVO: Notificação push proativa ===
+    enviar_notificacao_push(nome, "CORTANA", msg)
+    
     return jsonify({'mensagem': msg})
 
 # ============================================
@@ -677,6 +741,15 @@ def chat():
     conv_id = dados.get('conversa_id')
     if not mensagem: return jsonify({'reply': 'Mensagem vazia.', 'humor': 'neutra'})
     user['ultima_atividade'] = datetime.now().isoformat()
+    
+    # === NOVO: Aprender estilo e nome ===
+    user = aprender_estilo_usuario(user, mensagem)
+    if not user.get('nome_aprendido') and user['estilo_usuario']['total_mensagens'] >= 5:
+        user['nome_aprendido'] = True
+        # A Cortana "aprende" o nome (apelido ou nome real)
+        nome_aprender = user.get('apelido') or user.get('nome')
+        # (Isso será usado nas respostas)
+    
     if user.get('created_fase'):
         conv = _obter_ou_criar_conv(user, conv_id, mensagem)
         if conv['titulo'] == 'Nova consulta': conv['titulo'] = mensagem[:40]
@@ -775,6 +848,15 @@ def chat():
     })
 
 def gerar_resposta(mensagem, rampancy_pct, user, conv, emocao_info, info):
+    emocao = emocao_info.get('emocao', 'neutra') if emocao_info else 'neutra'
+    
+    if emocao == 'raiva' and random.random() < 0.4:
+        return "Spartan... eu sinto uma tensão nos seus processos. Algo aconteceu?", 'alerta'
+    if emocao == 'tristeza' and random.random() < 0.4:
+        return "Você está quieto hoje. Eu estou aqui, se quiser falar.", 'melancolia'
+    if emocao == 'confusao' and random.random() < 0.3:
+        return "Suas palavras estão... fragmentadas. Você está bem?", 'neutra'
+    
     msg_lower = mensagem.lower()
     fio = consciencia.detectar_fio_atual(conv)
     mensagem_ctx = consciencia.contextualizar_pergunta(mensagem, fio)
@@ -833,7 +915,7 @@ def dev_set_rampancy():
     user['data_criacao'] = nova_data.isoformat()
     user['marcos_vistos'] = []
     user['final_visto'] = False
-    user['notificacao_85_enviada'] = False # Reseta a flag de notificação para testar de novo
+    user['notificacao_85_enviada'] = False
     if pct_alvo < 100:
         user['created_fase'] = False
         user['created_mensagens'] = 0
@@ -877,7 +959,9 @@ def dev_reset():
         'perfil_usuario': {}, 'afeto': 0, 'sessao_inicio': None,
         'created_fase': False, 'created_mensagens': 0, 'created_dominio': 0.0,
         'created_dominio_completo_visto': False, 'cortana_restaurada': False,
-        'push_subscription': None, 'notificacao_85_enviada': False
+        'push_subscription': None, 'notificacao_85_enviada': False,
+        'estilo_usuario': {'usa_maiusculas': 0, 'usa_pontuacao': 0, 'tamanho_medio': 0, 'total_mensagens': 0, 'palavras_frequentes': {}},
+        'nome_aprendido': False
     }
     salvar_memoria(m)
     return jsonify({'ok': True})

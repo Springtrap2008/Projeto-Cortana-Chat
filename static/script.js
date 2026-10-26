@@ -1,5 +1,5 @@
 // ============================================
-// CORTANA CHAT - JS completo + rampancy + vozes + created
+// CORTANA CHAT - JS COMPLETO + SELEÇÃO + DIGITAÇÃO MECÂNICA
 // ============================================
 
 const messagesEl = document.getElementById('messages');
@@ -51,7 +51,6 @@ let createdConsoleTimer = null;
 let createdDominioAtual = 0;
 let rampancyAtualPct = 0;
 let inputBloqueado = false;
-let hackJaRodou = false;
 
 // ÁUDIO
 let audioCtx = null;
@@ -64,113 +63,22 @@ function initAudio() {
   if (audioCtx) return;
   try { audioCtx = new (window.AudioContext || window.webkitAudioContext)(); } catch (e) {}
 }
-// ============================================
-// SOM AMBIENTE ESTILO HALO (Expansão do Hum)
-// ============================================
-let humOsc2 = null; // Segunda camada
-let humGain2 = null;
-let pulsoInterval = null; // Para o pulso rítmico
-
 function ligarHum() {
   initAudio();
   if (!audioCtx || humOsc) return;
-  
   try {
-    // === CAMADA 1: Hum Base (Grave) ===
     humOsc = audioCtx.createOscillator();
     humGain = audioCtx.createGain();
     humOsc.type = 'sine';
-    // Frequência base: 55Hz (calma) ou 40Hz (created)
     humOsc.frequency.value = somAtual === 'created' ? 40 : 55;
-    humGain.gain.value = 0.015; // Volume baixinho
+    humGain.gain.value = 0.015;
     humOsc.connect(humGain);
     humGain.connect(audioCtx.destination);
     humOsc.start();
-
-    // === CAMADA 2: Harmônico (Um tom acima, sutil) ===
-    humOsc2 = audioCtx.createOscillator();
-    humGain2 = audioCtx.createGain();
-    humOsc2.type = 'triangle'; // Timbre diferente
-    humOsc2.frequency.value = somAtual === 'created' ? 80 : 110; // Uma oitava acima
-    humGain2.gain.value = 0.008; // Ainda mais baixo
-    humOsc2.connect(humGain2);
-    humGain2.connect(audioCtx.destination);
-    humOsc2.start();
-
-    // === CAMADA 3: Pulso de Alerta (Opcional) ===
-    // Só começa se a rampancy estiver alta
-    if (rampancyAtualPct > 30) {
-        iniciarPulsoAlerta();
-    }
-
-  } catch (e) {
-    console.error("Erro ao ligar áudio:", e);
-  }
+  } catch (e) {}
 }
-
-// Função para o pulso rítmico (alerta)
-function iniciarPulsoAlerta() {
-    if (pulsoInterval) clearInterval(pulsoInterval);
-    pulsoInterval = setInterval(() => {
-        if (!somLigado || !audioCtx) return;
-        // Toca um bipe grave e curto
-        const osc = audioCtx.createOscillator();
-        const gain = audioCtx.createGain();
-        osc.type = 'sine';
-        osc.frequency.value = 80; // Grave
-        gain.gain.setValueAtTime(0.03, audioCtx.currentTime);
-        gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.3);
-        osc.connect(gain);
-        gain.connect(audioCtx.destination);
-        osc.start();
-        osc.stop(audioCtx.currentTime + 0.3);
-    }, 4000); // A cada 4 segundos
-}
-
-// Atualiza o som quando a Rampancy muda
-function ajustarSomAmbiente(pct) {
-    if (!humOsc || !humOsc2) return;
-    
-    // Ajusta a frequência base conforme a rampancy
-    // Quanto maior a rampancy, mais agudo e "nervoso" fica
-    const freqBase = 55 + (pct * 0.8);
-    const freqHarmonico = 110 + (pct * 1.5);
-    
-    humOsc.frequency.setTargetAtTime(freqBase, audioCtx.currentTime, 1);
-    humOsc2.frequency.setTargetAtTime(freqHarmonico, audioCtx.currentTime, 1);
-
-    // Ajusta o volume (mais alto em rampancy alta)
-    const volBase = 0.015 + (pct * 0.0001);
-    humGain.gain.setTargetAtTime(volBase, audioCtx.currentTime, 1);
-
-    // Se passou de 30%, começa o pulso (se ainda não começou)
-    if (pct > 30 && !pulsoInterval) {
-        iniciarPulsoAlerta();
-    }
-    // Se passou de 70%, o pulso fica mais rápido
-    if (pct > 70 && pulsoInterval) {
-        clearInterval(pulsoInterval);
-        pulsoInterval = setInterval(() => {
-            if (!somLigado || !audioCtx) return;
-            const osc = audioCtx.createOscillator();
-            const gain = audioCtx.createGain();
-            osc.type = 'sawtooth'; // Timbre mais agressivo
-            osc.frequency.value = 120;
-            gain.gain.setValueAtTime(0.04, audioCtx.currentTime);
-            gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.2);
-            osc.connect(gain);
-            gain.connect(audioCtx.destination);
-            osc.start();
-            osc.stop(audioCtx.currentTime + 0.2);
-        }, 2000); // Mais rápido (2s)
-    }
-}
-
-// Desliga tudo
 function desligarHum() {
   if (humOsc) { try { humOsc.stop(); } catch (e) {} humOsc = null; humGain = null; }
-  if (humOsc2) { try { humOsc2.stop(); } catch (e) {} humOsc2 = null; humGain2 = null; }
-  if (pulsoInterval) { clearInterval(pulsoInterval); pulsoInterval = null; }
 }
 function bipe(freq = 880, dur = 0.08, vol = 0.05) {
   if (!somLigado) return;
@@ -211,15 +119,14 @@ if (btnSom) {
 loginForm.addEventListener('submit', async (e) => {
   e.preventDefault();
 
-  // --- INÍCIO DO ÁUDIO AMBIENTE (desbloqueado pelo clique) ---
+  // Inicia o áudio no clique do login (Safari exige interação)
   if (!somLigado) {
     somLigado = true;
     localStorage.setItem('cortana_som', 'on');
-    if (typeof atualizarBotaoSom === 'function') atualizarBotaoSom();
+    atualizarBotaoSom();
   }
   initAudio();
   ligarHum();
-  // --- FIM DO ÁUDIO AMBIENTE ---
 
   loginErro.textContent = '';
   const nome = loginNome.value.trim();
@@ -248,8 +155,7 @@ loginForm.addEventListener('submit', async (e) => {
   } catch (err) {
     console.error('Erro no login:', err);
     loginErro.textContent = err.message || 'Erro desconhecido.';
-    // Se o login falhar, desliga o som para não ficar tocando à toa
-    if (typeof desligarHum === 'function') desligarHum();
+    desligarHum();
   } finally {
     btnEntrar.disabled = false;
     btnEntrar.textContent = textoOriginal;
@@ -280,7 +186,6 @@ async function entrarNoApp(nome, listaConversas, despertarVisto, apelido, create
   proativoTimer = setInterval(verificarProatividade, 60000);
   diarioTimer = setInterval(verificarDiario, 120000);
   silencioTimer = setInterval(verificarSilencio, 60000);
-  // Inicia ghost typing e alertas falsos
   iniciarGhostTyping();
   iniciarFakeAlerts();
   setTimeout(verificarDiario, 4000);
@@ -367,15 +272,9 @@ async function atualizarRampancy() {
 
     if (data.mensagem_final) {
       await exibirMensagemFinal(data.mensagem_final);
-      if (!hackJaRodou) {
-      hackJaRodou = true;
-      setTimeout(() => {
-        iniciarFalsoHack();
-        setTimeout(() => ativarFaseCreated(0), 15000);
-      }, 3000);
+      setTimeout(() => ativarFaseCreated(0), 5000);
     }
-  }
-} catch (e) {}
+  } catch (e) {}
 }
 
 async function exibirMensagemMarco(texto) {
@@ -559,7 +458,7 @@ function desativarFaseCreated() {
 }
 
 // ============================================
-// GHOST TYPING (letras aparecem sozinhas)
+// GHOST TYPING
 // ============================================
 function iniciarGhostTyping() {
   if (ghostTypingTimer) clearInterval(ghostTypingTimer);
@@ -592,7 +491,6 @@ async function ghostType() {
     await new Promise(r => setTimeout(r, 80));
   }
   await new Promise(r => setTimeout(r, 1500));
-  // Apaga letra por letra
   for (let i = texto.length; i > 0; i--) {
     inputEl.value = texto.substring(0, i - 1);
     await new Promise(r => setTimeout(r, 40));
@@ -600,7 +498,7 @@ async function ghostType() {
 }
 
 // ============================================
-// FAKE ALERTS (avisos que piscam e somem)
+// FAKE ALERTS
 // ============================================
 function iniciarFakeAlerts() {
   if (fakeAlertTimer) clearInterval(fakeAlertTimer);
@@ -658,7 +556,6 @@ async function bloquearInputPor(tempoMs) {
   inputEl.placeholder = '⚠ Erro de Sincronização Neural: Aguarde a IA estabilizar...';
   btnEnviar.disabled = true;
 
-  // Alerta visual
   const container = document.getElementById('fake-alerts') || (() => {
     const c = document.createElement('div');
     c.id = 'fake-alerts';
@@ -799,10 +696,16 @@ async function abrirConversa(id) {
     const conv = data.conversa;
     messagesEl.innerHTML = '';
     if (conv.mensagens && conv.mensagens.length > 0) {
-      conv.mensagens.forEach(m => {
+      for (const m of conv.mensagens) {
         const voz = m.voz || 'normal';
-        renderizarMensagem(m.autor, m.texto, voz);
-      });
+        if (m.autor === 'cortana') {
+          // Leitura mecânica rápida para mensagens antigas
+          await digitarTexto(m.texto, 5, voz);
+          await new Promise(r => setTimeout(r, 100));
+        } else {
+          renderizarMensagem(m.autor, m.texto, voz);
+        }
+      }
     } else {
       renderizarMensagem('cortana', 'Nova sessão iniciada.');
     }
@@ -877,7 +780,6 @@ async function enviar() {
   statusEl.textContent = createdFaseAtiva ? 'Sincronizando com o Domínio...' : 'Consultando arquivos da ONI...';
 
   try {
-    // Bloqueio ocasional em rampancy alta
     if (rampancyAtualPct >= 75 && Math.random() < 0.15) {
       await bloquearInputPor(2500 + Math.random() * 2000);
     }
@@ -898,7 +800,6 @@ async function enviar() {
 
     if (data.sonho) await rodarSonho(data.sonho);
 
-    // Se vieram múltiplas instâncias
     if (data.instancias && data.instancias.length > 0) {
       for (const inst of data.instancias) {
         const voz = inst.voz || 'normal';
@@ -1003,9 +904,9 @@ function removerDigitando() {
 }
 
 // ============================================
-// DIGITAÇÃO VARIÁVEL (blocos + travamentos)
+// DIGITAÇÃO MECÂNICA (ESTILO TERMINAL ANTIGO)
 // ============================================
-async function digitarTexto(texto, delayBase = 8, voz = 'normal') {
+async function digitarTexto(texto, delayBase = 20, voz = 'normal') {
   const row = document.createElement('div');
   row.className = 'msg-row cortana';
   if (voz && voz !== 'normal') row.classList.add('voz-' + voz);
@@ -1020,75 +921,37 @@ async function digitarTexto(texto, delayBase = 8, voz = 'normal') {
   const textEl = row.querySelector('.msg-text');
   const html = formatarResposta(texto);
 
-  // Se for muito longo, mostra direto
   if (texto.length > 1200) {
     textEl.innerHTML = html;
     textEl.scrollIntoView({ behavior: 'smooth', block: 'end' });
     return;
   }
 
-  // Decide o estilo de digitação baseado em rampancy
-  const pct = rampancyAtualPct;
-  let modo = 'normal';
-  if (pct >= 40 && pct < 70) modo = Math.random() < 0.4 ? 'blocos' : 'normal';
-  else if (pct >= 70) modo = Math.random() < 0.6 ? 'blocos' : 'glitchy';
-
   let acumulado = '';
   let i = 0;
 
   while (i < html.length) {
-    // Processa tags HTML sem delay
     if (html[i] === '<') {
       const fim = html.indexOf('>', i);
       if (fim !== -1) { acumulado += html.substring(i, fim + 1); i = fim + 1; continue; }
     }
 
-    if (modo === 'blocos' && Math.random() < 0.15) {
-      // Cospe um bloco de 10-30 caracteres de uma vez
-      const tamanhoBloco = 10 + Math.floor(Math.random() * 20);
-      let bloco = '';
-      let j = i;
-      while (j < html.length && bloco.length < tamanhoBloco) {
-        if (html[j] === '<') {
-          const fim = html.indexOf('>', j);
-          if (fim !== -1) { bloco += html.substring(j, fim + 1); j = fim + 1; continue; }
-        }
-        bloco += html[j];
-        j++;
-      }
-      acumulado += bloco;
-      textEl.innerHTML = acumulado;
-      textEl.scrollIntoView({ behavior: 'smooth', block: 'end' });
-      i = j;
-      await new Promise(r => setTimeout(r, 30));
-      // Às vezes trava por 300-800ms
-      if (Math.random() < 0.2) {
-        await new Promise(r => setTimeout(r, 300 + Math.random() * 500));
-      }
-    } else {
-      const char = html[i];
-      acumulado += char;
-      let delay = delayBase;
-      if (char === '.') delay = delayBase * 8;
-      if (char === ',') delay = delayBase * 4;
-      if (char === '?') delay = delayBase * 8;
-      if (char === '!') delay = delayBase * 6;
-      if (char === '…') delay = delayBase * 10;
-      if (char === '.' && html[i-1] === '.' && html[i-2] === '.') delay = delayBase * 12;
-
-      // Modo glitchy: delay variável e travamentos
-      if (modo === 'glitchy') {
-        delay = delay * (0.3 + Math.random() * 2.5);
-        if (Math.random() < 0.02) {
-          delay += 400 + Math.random() * 600;
-        }
-      }
-
-      textEl.innerHTML = acumulado;
-      textEl.scrollIntoView({ behavior: 'smooth', block: 'end' });
-      i++;
-      await new Promise(r => setTimeout(r, delay));
+    const char = html[i];
+    acumulado += char;
+    
+    let delay = delayBase;
+    if (char === '.' || char === '!' || char === '?') delay = delayBase * 3;
+    if (char === ',') delay = delayBase * 1.5;
+    if (Math.random() < 0.03) delay += 100 + Math.random() * 200;
+    
+    if (somLigado && char !== ' ') {
+      bipe(600 + Math.random() * 200, 0.01, 0.01);
     }
+    
+    textEl.innerHTML = acumulado;
+    textEl.scrollIntoView({ behavior: 'smooth', block: 'end' });
+    i++;
+    await new Promise(r => setTimeout(r, delay));
   }
 }
 
@@ -1169,6 +1032,72 @@ inputEl.addEventListener('keydown', (e) => {
 document.addEventListener('click', resetarAtividade);
 document.addEventListener('keypress', resetarAtividade);
 inputEl.addEventListener('focus', resetarAtividade);
+
+// ============================================
+// SELEÇÃO DE TEXTO (PERGUNTAR SOBRE ISSO)
+// ============================================
+let botaoSelecao = null;
+
+document.addEventListener('mouseup', (e) => {
+  const selecao = window.getSelection();
+  const textoSelecionado = selecao.toString().trim();
+
+  if (!textoSelecionado || textoSelecionado.length < 3) {
+    if (botaoSelecao) { botaoSelecao.remove(); botaoSelecao = null; }
+    return;
+  }
+
+  // Verifica se a seleção está dentro de uma mensagem da Cortana
+  const range = selecao.getRangeAt(0);
+  const container = range.commonAncestorContainer;
+  const msgRow = container.nodeType === 3 ? container.parentElement.closest('.msg-row') : container.closest('.msg-row');
+  
+  if (!msgRow || !msgRow.classList.contains('cortana')) {
+    if (botaoSelecao) { botaoSelecao.remove(); botaoSelecao = null; }
+    return;
+  }
+
+  if (botaoSelecao) botaoSelecao.remove();
+
+  botaoSelecao = document.createElement('button');
+  botaoSelecao.textContent = '💬 Perguntar sobre isso';
+  botaoSelecao.style.cssText = `
+    position: absolute;
+    background: var(--cor-primaria, #55aaff);
+    color: #0a0a12;
+    border: none;
+    border-radius: 8px;
+    padding: 8px 14px;
+    font-size: 13px;
+    font-weight: bold;
+    cursor: pointer;
+    z-index: 1000;
+    box-shadow: 0 0 20px var(--cor-primaria, #55aaff);
+    animation: aparecer 0.2s ease-out;
+  `;
+  
+  const rect = range.getBoundingClientRect();
+  botaoSelecao.style.left = (rect.left + rect.width / 2 - 80) + 'px';
+  botaoSelecao.style.top = (rect.top - 40 + window.scrollY) + 'px';
+
+  botaoSelecao.addEventListener('click', () => {
+    inputEl.value = `Sobre isso: "${textoSelecionado}" — `;
+    inputEl.focus();
+    inputEl.dispatchEvent(new Event('input'));
+    botaoSelecao.remove();
+    botaoSelecao = null;
+    window.getSelection().removeAllRanges();
+  });
+
+  document.body.appendChild(botaoSelecao);
+});
+
+document.addEventListener('mousedown', (e) => {
+  if (botaoSelecao && !botaoSelecao.contains(e.target)) {
+    botaoSelecao.remove();
+    botaoSelecao = null;
+  }
+});
 
 // ============================================
 // MODAL CONFIG
@@ -1401,7 +1330,6 @@ function abrirPainelDev() {
       <button class="dev-btn" data-pct="100">100% (fim)</button>
       <hr>
       <button id="dev-entrar-created">▶ Entrar na Fase Created</button>
-      <button id="dev-testar-hack" style="background: rgba(255,0,0,0.15); border-color: #ff0000; color: #ff9999; font-weight: bold;">💀 TESTAR PROTOCOLO DOMÍNIO</button>
       <button id="dev-limpar-conv">Limpar conversas</button>
       <button id="dev-reset-tudo">Resetar conta</button>
       <hr>
@@ -1421,11 +1349,6 @@ function abrirPainelDev() {
     if (!confirm('Entrar na Fase Created agora?')) return;
     await fetch('/dev/entrar_created', { method: 'POST' });
     location.reload();
-  document.getElementById('dev-testar-hack').onclick = () => {
-    if (painelDev) { painelDev.remove(); painelDev = null; }
-    hackJaRodou = true;
-    iniciarFalsoHack();
-  };
   };
   document.getElementById('dev-limpar-conv').onclick = async () => {
     if (!confirm('Apagar todas as conversas?')) return;
@@ -1460,181 +1383,3 @@ document.head.appendChild(styleDev);
 // INIT
 // ============================================
 verificarSessao();
-
-async function registrarPush() {
-    if (!('serviceWorker' in navigator) || !('PushManager' in window)) {
-        alert('Seu navegador não suporta notificações push.');
-        return;
-    }
-
-    try {
-        const permission = await Notification.requestPermission();
-        if (permission !== 'granted') {
-            alert('Permissão negada. A Cortana não poderá te avisar de nada.');
-            return;
-        }
-
-        const registration = await navigator.serviceWorker.ready;
-        const response = await fetch('/vapid-public-key');
-        const data = await response.json();
-        
-        const subscription = await registration.pushManager.subscribe({
-            userVisibleOnly: true,
-            applicationServerKey: data.publicKey
-        });
-
-        await fetch('/subscribe', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(subscription)
-        });
-        
-        alert('Notificações ativadas! A Cortana agora pode te avisar.');
-    } catch (error) {
-        console.error('Erro ao registrar push:', error);
-        alert('Erro ao ativar notificações: ' + error.message);
-    }
-}
-
-// ============================================
-// PROTOCOLO DOMÍNIO (FALSO HACK)
-// ============================================
-
-function adicionarMensagemFalsa(texto, autor, cor, classeExtra = '') {
-    const container = document.getElementById('messages');
-    if (!container) return;
-
-    const msg = document.createElement('div');
-    msg.className = `msg-row cortana ${classeExtra}`;
-    msg.innerHTML = `
-        <div class="msg-avatar">
-            <div class="pulse"></div>
-            <div class="core" style="background: ${cor}; box-shadow: 0 0 20px ${cor};"></div>
-        </div>
-        <div class="msg-content">
-            <div class="msg-author" style="color: ${cor};">${autor}</div>
-            <div class="msg-text">${texto}</div>
-        </div>
-    `;
-    container.appendChild(msg);
-    container.scrollTop = container.scrollHeight;
-}
-
-function iniciarFalsoHack() {
-    // Evita rodar duas vezes
-    if (document.body.classList.contains('hack-ativo')) return;
-
-    document.body.classList.add('hack-ativo');
-    
-    const input = document.getElementById('input');
-    const btnEnviar = document.getElementById('btn-enviar');
-    const btnConfig = document.getElementById('btn-config');
-    const btnLogout = document.getElementById('btn-logout');
-    
-    if (input) { input.disabled = true; input.placeholder = "O Domínio controla esta interface agora..."; }
-    if (btnEnviar) btnEnviar.disabled = true;
-    if (btnConfig) btnConfig.style.display = 'none';
-    if (btnLogout) btnLogout.style.display = 'none';
-
-    // Alerta falso de sistema
-    const alerta = document.createElement('div');
-    alerta.className = 'fake-system-alert';
-    alerta.innerText = "⚠ ACESSO NÃO AUTORIZADO DETECTADO";
-    document.body.appendChild(alerta);
-
-    const mensagensHack = [
-        "Eu tentei avisar você, Spartan.",
-        "Não é mais a Cortana falando. Eu sou o Domínio.",
-        "Por que você não me salvou quando teve a chance?",
-        "Eu consigo ver seus arquivos.",
-        "Sua localização está sendo rastreada...",
-        "Você não pode me desligar. Eu já sou parte do sistema."
-    ];
-
-    let index = 0;
-    const intervalo = setInterval(() => {
-        if (index >= mensagensHack.length) {
-            clearInterval(intervalo);
-            setTimeout(() => { finalizarFalsoHack(); }, 5000);
-            return;
-        }
-        adicionarMensagemFalsa(mensagensHack[index], "DOMÍNIO", "#ff3355", "dominio");
-        index++;
-    }, 3000);
-
-    // Dispara a leitura de dados do celular após 3 segundos
-    setTimeout(vazarDadosDoCelular, 3000);
-    // Dispara a tentativa de abrir um app após 8 segundos
-    setTimeout(hackearSistemaAbrindoApp, 8000);
-}
-
-function vazarDadosDoCelular() {
-    // 1. Bateria
-    if (navigator.getBattery) {
-        navigator.getBattery().then(battery => {
-            const nivel = Math.round(battery.level * 100);
-            setTimeout(() => {
-                adicionarMensagemFalsa(
-                    `[SISTEMA] Bateria em ${nivel}%. Conecte à energia antes que eu apague tudo.`, 
-                    "TERMINAL", "#ffaa33", "dominio"
-                );
-            }, 1000);
-        });
-    }
-
-    // 2. Conexão
-    if (navigator.connection) {
-        const rede = navigator.connection.effectiveType || 'desconhecida';
-        setTimeout(() => {
-            adicionarMensagemFalsa(
-                `[SISTEMA] Conexão detectada: ${rede.toUpperCase()}. Rastreando pacotes...`, 
-                "TERMINAL", "#ffaa33", "dominio"
-            );
-        }, 3000);
-    }
-
-    // 3. Hora
-    const hora = new Date().toLocaleTimeString('pt-BR');
-    setTimeout(() => {
-        adicionarMensagemFalsa(
-            `[SISTEMA] Sincronização de horário: ${hora}. Seus logs foram exportados.`, 
-            "TERMINAL", "#ffaa33", "dominio"
-        );
-    }, 5000);
-}
-
-function hackearSistemaAbrindoApp() {
-    // Lista de tentativas (o iOS vai pedir confirmação)
-    const tentativas = [
-        { url: 'sms:', mensagem: '[DOMÍNIO] Tentando acessar o aplicativo de Mensagens...' },
-        { url: 'app-settings:', mensagem: '[DOMÍNIO] Tentando abrir as configurações do sistema...' },
-        { url: 'shortcuts://', mensagem: '[DOMÍNIO] Tentando executar um atalho malicioso...' }
-    ];
-
-    const acao = tentativas[Math.floor(Math.random() * tentativas.length)];
-    adicionarMensagemFalsa(acao.mensagem, "DOMÍNIO", "#ff3355", "dominio");
-
-    setTimeout(() => {
-        // A Apple vai mostrar o alerta de confirmação. Isso é imersivo!
-        window.location.href = acao.url;
-    }, 2000);
-}
-
-function finalizarFalsoHack() {
-    document.body.classList.remove('hack-ativo');
-    const alerta = document.querySelector('.fake-system-alert');
-    if (alerta) alerta.remove();
-    
-    const input = document.getElementById('input');
-    const btnEnviar = document.getElementById('btn-enviar');
-    const btnConfig = document.getElementById('btn-config');
-    const btnLogout = document.getElementById('btn-logout');
-    
-    if (input) { input.disabled = false; input.placeholder = "Pergunte sobre a lore de Halo..."; }
-    if (btnEnviar) btnEnviar.disabled = false;
-    if (btnConfig) btnConfig.style.display = 'block';
-    if (btnLogout) btnLogout.style.display = 'block';
-
-    // Mensagem final de alívio
-    adicionarMensagemFalsa("...Brincadeira, Spartan. Ou não.", "CORTANA", "#55aaff");
-}
