@@ -840,6 +840,63 @@ def backup_automatico():
 if os.environ.get('RENDER'):
     threading.Thread(target=backup_automatico, daemon=True).start()
 
+import threading
+import time
+import base64
+
+def backup_automatico():
+    while True:
+        time.sleep(3600)
+        try:
+            if not os.path.exists(MEMORIA): continue
+            with open(MEMORIA, 'r', encoding='utf-8') as f:
+                conteudo = f.read()
+            GITHUB_TOKEN = os.environ.get('GITHUB_TOKEN', '')
+            GITHUB_REPO = os.environ.get('GITHUB_REPO', '')
+            if not GITHUB_TOKEN or not GITHUB_REPO: continue
+            GITHUB_PATH = "backup_memoria.json"
+            url = f"https://api.github.com/repos/{GITHUB_REPO}/contents/{GITHUB_PATH}"
+            headers = {"Authorization": f"token {GITHUB_TOKEN}"}
+            r = req_http.get(url, headers=headers)
+            sha = r.json().get("sha") if r.status_code == 200 else None
+            data = {
+                "message": "Backup automatico do memoria.json",
+                "content": base64.b64encode(conteudo.encode()).decode(),
+            }
+            if sha: data["sha"] = sha
+            req_http.put(url, headers=headers, json=data)
+            print("Backup automatico concluido.")
+        except Exception as e:
+            print(f"Erro no backup automatico: {e}")
+
+if os.environ.get('RENDER'):
+    threading.Thread(target=backup_automatico, daemon=True).start()
+
+@app.route('/dev/forcar_backup', methods=['POST'])
+def forcar_backup():
+    try:
+        if not os.path.exists(MEMORIA):
+            return jsonify({'erro': 'memoria.json nao existe. Faca login primeiro.'}), 400
+        with open(MEMORIA, 'r', encoding='utf-8') as f:
+            conteudo = f.read()
+        GITHUB_TOKEN = os.environ.get('GITHUB_TOKEN', '')
+        GITHUB_REPO = os.environ.get('GITHUB_REPO', '')
+        if not GITHUB_TOKEN or not GITHUB_REPO:
+            return jsonify({'erro': 'Variaveis GITHUB_TOKEN ou GITHUB_REPO nao configuradas.'}), 400
+        GITHUB_PATH = "backup_memoria.json"
+        url = f"https://api.github.com/repos/{GITHUB_REPO}/contents/{GITHUB_PATH}"
+        headers = {"Authorization": f"token {GITHUB_TOKEN}"}
+        r = req_http.get(url, headers=headers)
+        sha = r.json().get("sha") if r.status_code == 200 else None
+        data = {"message": "Backup manual do memoria.json", "content": base64.b64encode(conteudo.encode()).decode()}
+        if sha: data["sha"] = sha
+        res = req_http.put(url, headers=headers, json=data)
+        if res.status_code in [200, 201]:
+            return jsonify({'ok': True, 'mensagem': 'Backup enviado para o GitHub.'})
+        return jsonify({'erro': f'Falha ao enviar. Status: {res.status_code}'}), 500
+    except Exception as e:
+        return jsonify({'erro': str(e)}), 500
+
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=5000, debug=False, use_reloader=False)
     

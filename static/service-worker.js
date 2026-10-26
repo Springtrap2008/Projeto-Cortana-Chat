@@ -1,4 +1,4 @@
-const CACHE_NAME = 'cortana-pwa-v2'; // Mude para v3, v4, etc.
+const CACHE_NAME = 'cortana-pwa-v5'; // Mude para v5, v6, etc.
 const urlsToCache = [
   '/',
   '/static/style.css', // adicione seus arquivos CSS/JS aqui
