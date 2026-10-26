@@ -1,5 +1,5 @@
 // ============================================
-// CORTANA CHAT - JS COMPLETO (FASES 1, 2, 3, 4 + MODO ARMA)
+// CORTANA CHAT - JS COMPLETO (FASES 1, 2, 3, 4 + MODO ARMA + TRILHAS)
 // ============================================
 
 const messagesEl = document.getElementById('messages');
@@ -49,7 +49,6 @@ const btnNovoLembrete = document.getElementById('btn-novo-lembrete');
 const lembretesLista = document.getElementById('lembretes-lista');
 const btnModoTerminal = document.getElementById('btn-modo-terminal');
 
-// === NOVO: SELETOR DE PERSONALIDADE ===
 const cfgPersonalidade = document.getElementById('cfg-personalidade');
 const btnSalvarPersonalidade = document.getElementById('cfg-salvar-personalidade');
 const cfgMsgPersonalidade = document.getElementById('cfg-msg-personalidade');
@@ -79,7 +78,7 @@ let digitacaoCancelada = false;
 let modoHolograma = false;
 let ultimaRespostaId = null;
 let modoTerminalAtivo = false;
-let modoPersonalidadeAtual = 'cortana'; // === NOVO ===
+let modoPersonalidadeAtual = 'cortana';
 
 // ÁUDIO
 let audioCtx = null;
@@ -87,6 +86,7 @@ let humOsc = null;
 let humGain = null;
 let somLigado = localStorage.getItem('cortana_som') === 'on';
 let somAtual = 'normal';
+let trilhaAtiva = null;
 
 function initAudio() { if (audioCtx) return; try { audioCtx = new (window.AudioContext || window.webkitAudioContext)(); } catch (e) {} }
 function ligarHum() {
@@ -109,7 +109,126 @@ function bipe(freq = 880, dur = 0.08, vol = 0.05) {
   } catch (e) {}
 }
 function atualizarBotaoSom() { if (!btnSom) return; btnSom.textContent = somLigado ? '🔊' : '🔇'; btnSom.classList.toggle('ativo', somLigado); }
-if (btnSom) { btnSom.addEventListener('click', () => { somLigado = !somLigado; localStorage.setItem('cortana_som', somLigado ? 'on' : 'off'); if (somLigado) { initAudio(); ligarHum(); bipe(660, 0.1); } else { desligarHum(); } atualizarBotaoSom(); }); atualizarBotaoSom(); }
+
+// ============================================
+// TRILHAS SONORAS PROCEDURAIS
+// ============================================
+function pararTrilhas() {
+    if (trilhaAtiva) {
+        try {
+            if (trilhaAtiva.osc) trilhaAtiva.osc.stop();
+            if (trilhaAtiva.osc2) trilhaAtiva.osc2.stop();
+            if (trilhaAtiva.intervalo) clearInterval(trilhaAtiva.intervalo);
+        } catch (e) {}
+        trilhaAtiva = null;
+    }
+}
+
+function iniciarTrilhaCortana() {
+    if (!somLigado) return;
+    if (trilhaAtiva && trilhaAtiva.tipo === 'cortana') return;
+    pararTrilhas();
+    initAudio();
+    if (!audioCtx) return;
+    try {
+        const osc = audioCtx.createOscillator();
+        const gain = audioCtx.createGain();
+        const filter = audioCtx.createBiquadFilter();
+        osc.type = 'sine';
+        osc.frequency.value = 55;
+        filter.type = 'lowpass';
+        filter.frequency.value = 200;
+        gain.gain.value = 0.02;
+        osc.connect(filter);
+        filter.connect(gain);
+        gain.connect(audioCtx.destination);
+        osc.start();
+
+        const osc2 = audioCtx.createOscillator();
+        const gain2 = audioCtx.createGain();
+        osc2.type = 'triangle';
+        osc2.frequency.value = 110;
+        gain2.gain.value = 0.01;
+        osc2.connect(gain2);
+        gain2.connect(audioCtx.destination);
+        osc2.start();
+
+        trilhaAtiva = { tipo: 'cortana', osc, osc2 };
+
+        const intervalo = setInterval(() => {
+            if (!somLigado || !audioCtx) return;
+            try {
+                const oscPulso = audioCtx.createOscillator();
+                const gainPulso = audioCtx.createGain();
+                oscPulso.type = 'sine';
+                oscPulso.frequency.value = 80;
+                gainPulso.gain.setValueAtTime(0.03, audioCtx.currentTime);
+                gainPulso.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.5);
+                oscPulso.connect(gainPulso);
+                gainPulso.connect(audioCtx.destination);
+                oscPulso.start();
+                oscPulso.stop(audioCtx.currentTime + 0.5);
+            } catch (e) {}
+        }, 8000);
+        trilhaAtiva.intervalo = intervalo;
+    } catch (e) { console.error('Erro ao iniciar trilha da Cortana:', e); }
+}
+
+function iniciarTrilhaArma() {
+    if (!somLigado) return;
+    if (trilhaAtiva && trilhaAtiva.tipo === 'arma') return;
+    pararTrilhas();
+    initAudio();
+    if (!audioCtx) return;
+    try {
+        const osc = audioCtx.createOscillator();
+        const gain = audioCtx.createGain();
+        osc.type = 'triangle';
+        osc.frequency.value = 220;
+        gain.gain.value = 0.012;
+        osc.connect(gain);
+        gain.connect(audioCtx.destination);
+        osc.start();
+
+        trilhaAtiva = { tipo: 'arma', osc };
+
+        const intervalo = setInterval(() => {
+            if (!somLigado || !audioCtx) return;
+            try {
+                const oscArpejo = audioCtx.createOscillator();
+                const gainArpejo = audioCtx.createGain();
+                oscArpejo.type = 'sine';
+                const notas = [440, 523, 587, 659, 784];
+                oscArpejo.frequency.value = notas[Math.floor(Math.random() * notas.length)];
+                gainArpejo.gain.setValueAtTime(0.008, audioCtx.currentTime);
+                gainArpejo.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.4);
+                oscArpejo.connect(gainArpejo);
+                gainArpejo.connect(audioCtx.destination);
+                oscArpejo.start();
+                oscArpejo.stop(audioCtx.currentTime + 0.4);
+            } catch (e) {}
+        }, 1200);
+        trilhaAtiva.intervalo = intervalo;
+    } catch (e) { console.error('Erro ao iniciar trilha da Arma:', e); }
+}
+
+if (btnSom) {
+  btnSom.addEventListener('click', () => {
+    somLigado = !somLigado;
+    localStorage.setItem('cortana_som', somLigado ? 'on' : 'off');
+    if (somLigado) {
+      initAudio();
+      if (modoPersonalidadeAtual === 'arma') iniciarTrilhaArma();
+      else iniciarTrilhaCortana();
+      bipe(660, 0.1);
+    } else {
+      desligarHum();
+      pararTrilhas();
+    }
+    atualizarBotaoSom();
+  });
+  atualizarBotaoSom();
+}
 
 // ============================================
 // FASE 4: MODO TERMINAL
@@ -137,7 +256,7 @@ function criarBotaoModoTerminal() {
 loginForm.addEventListener('submit', async (e) => {
   e.preventDefault();
   if (!somLigado) { somLigado = true; localStorage.setItem('cortana_som', 'on'); atualizarBotaoSom(); }
-  initAudio(); ligarHum();
+  initAudio();
   loginErro.textContent = '';
   const nome = loginNome.value.trim(); const senha = loginSenha.value;
   if (!nome || !senha) { loginErro.textContent = 'Preencha nome e senha.'; return; }
@@ -149,7 +268,7 @@ loginForm.addEventListener('submit', async (e) => {
     const texto = await res.text(); let data; try { data = JSON.parse(texto); } catch { throw new Error(`Resposta inválida (${res.status})`); }
     if (!res.ok) throw new Error(data.erro || `Erro ${res.status}`); if (data.erro) throw new Error(data.erro);
     entrarNoApp(data.nome, data.conversas, data.despertar_visto, data.apelido, data.created_fase, data.created_dominio, data.modo_terminal, data.modo_personalidade);
-  } catch (err) { console.error('Erro no login:', err); loginErro.textContent = err.message || 'Erro desconhecido.'; desligarHum(); }
+  } catch (err) { console.error('Erro no login:', err); loginErro.textContent = err.message || 'Erro desconhecido.'; desligarHum(); pararTrilhas(); }
   finally { btnEntrar.disabled = false; btnEntrar.textContent = textoOriginal; }
 });
 
@@ -176,6 +295,13 @@ async function entrarNoApp(nome, listaConversas, despertarVisto, apelido, create
   iniciarGhostTyping(); iniciarFakeAlerts();
   setTimeout(verificarDiario, 4000);
   if (createdFase) ativarFaseCreated(createdDominio || 0);
+  
+  if (modoPersonalidadeAtual === 'arma') {
+      iniciarTrilhaArma();
+  } else {
+      iniciarTrilhaCortana();
+  }
+  
   inputEl.focus(); resetarAtividade();
   carregarLembretes();
   setInterval(carregarLembretes, 60000);
@@ -316,7 +442,7 @@ document.getElementById('diario-fechar').addEventListener('click', () => { docum
 // ============================================
 async function rodarSonho(texto) { const overlay = document.getElementById('sonho-overlay'); overlay.classList.add('ativo'); bipe(120, 0.3, 0.06); await new Promise(r => setTimeout(r, 3000)); overlay.classList.remove('ativo'); await new Promise(r => setTimeout(r, 400)); await exibirMensagemMarco(texto); }
 async function verificarSessao() { try { const res = await fetch('/sessao'); const data = await res.json(); if (data.logado) entrarNoApp(data.nome, data.conversas, data.despertar_visto, data.apelido, data.created_fase, data.created_dominio, data.modo_terminal, data.modo_personalidade); } catch (e) {} }
-btnLogout.addEventListener('click', async () => { try { await fetch('/logout', { method: 'POST' }); } catch (e) {} if (rampancyTimer) clearInterval(rampancyTimer); if (proativoTimer) clearInterval(proativoTimer); if (diarioTimer) clearInterval(diarioTimer); if (silencioTimer) clearInterval(silencioTimer); if (ghostTypingTimer) clearInterval(ghostTypingTimer); if (fakeAlertTimer) clearInterval(fakeAlertTimer); if (createdConsoleTimer) clearInterval(createdConsoleTimer); desligarHum(); location.reload(); });
+btnLogout.addEventListener('click', async () => { try { await fetch('/logout', { method: 'POST' }); } catch (e) {} if (rampancyTimer) clearInterval(rampancyTimer); if (proativoTimer) clearInterval(proativoTimer); if (diarioTimer) clearInterval(diarioTimer); if (silencioTimer) clearInterval(silencioTimer); if (ghostTypingTimer) clearInterval(ghostTypingTimer); if (fakeAlertTimer) clearInterval(fakeAlertTimer); if (createdConsoleTimer) clearInterval(createdConsoleTimer); desligarHum(); pararTrilhas(); location.reload(); });
 
 // ============================================
 // PASTAS (Fase 2)
@@ -656,14 +782,22 @@ document.querySelectorAll('.config-tab').forEach(tab => {
   });
 });
 
-// === NOVO: SALVAR PERSONALIDADE ===
+// SALVAR PERSONALIDADE
 if (btnSalvarPersonalidade) {
   btnSalvarPersonalidade.addEventListener('click', async () => {
     const modo = cfgPersonalidade.value;
     try {
       const res = await fetch('/modo_personalidade', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ modo }) });
       const data = await res.json();
-      if (data.ok) { modoPersonalidadeAtual = modo; msgConfig('cfg-msg-personalidade', `Personalidade alterada para: ${modo === 'arma' ? 'A Arma' : 'Cortana'}`, 'ok'); }
+      if (data.ok) { 
+          modoPersonalidadeAtual = modo; 
+          msgConfig('cfg-msg-personalidade', `Personalidade alterada para: ${modo === 'arma' ? 'A Arma' : 'Cortana'}`, 'ok');
+          if (modo === 'arma') {
+              iniciarTrilhaArma();
+          } else {
+              iniciarTrilhaCortana();
+          }
+      }
       else { msgConfig('cfg-msg-personalidade', data.erro || 'Erro ao salvar.', 'erro'); }
     } catch (e) { msgConfig('cfg-msg-personalidade', 'Erro de conexão.', 'erro'); }
   });
