@@ -97,6 +97,9 @@
 
       <div id="created-console" class="oculto"><div id="created-logs"></div></div>
 
+      <!-- BOTÃO DE DESLIGAR A CORTANA (SÓ APARECE NA FASE CREATED) -->
+      <button id="btn-desligar-cortana" class="config-btn perigo" style="display:none; position: fixed; bottom: 160px; right: 24px; z-index: 9999; padding: 12px 20px; box-shadow: 0 0 20px #ff3355;">💔 Desligar a Cortana para sempre</button>
+
       <div id="input-area">
         <div class="input-wrapper">
           <textarea id="input" placeholder="Pergunte sobre a lore de Halo..." rows="1"></textarea>
@@ -140,7 +143,6 @@
             <h3>Perfil</h3>
             <p class="config-desc">Altere como a Cortana te chama e o nome de acesso.</p>
             
-            <!-- === NOVO: SELETOR DE PERSONALIDADE === -->
             <label class="config-label">
               <span>Personalidade da IA</span>
               <select id="cfg-personalidade" style="padding: 10px 14px; background: var(--bg-input); border: 1px solid var(--border); border-radius: 10px; color: var(--texto); font-size: 14px; outline: none;">
@@ -151,7 +153,6 @@
             <button id="cfg-salvar-personalidade" class="config-btn" style="margin-bottom: 14px;">Salvar Personalidade</button>
             <div class="config-msg" id="cfg-msg-personalidade"></div>
             <hr class="config-hr">
-            <!-- FIM DO NOVO -->
 
             <label class="config-label"><span>Nome de usuário (login)</span><input type="text" id="cfg-nome" placeholder="Spartan117"></label>
             <label class="config-label"><span>Apelido (como a Cortana te chama)</span><input type="text" id="cfg-apelido" placeholder="Spartan" maxlength="30"></label>

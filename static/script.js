@@ -388,6 +388,28 @@ function ativarFaseCreated(dominio) {
   rampancyLabel.textContent = 'DOMÍNIO'; topbarNome.textContent = 'CORTANA — CREATED'; statusEl.textContent = 'Conectada ao Domínio'; rampancyTime.textContent = 'Reclaimers';
   atualizarDominioUI(dominio); createdConsole.classList.remove('oculto'); createdLogs.innerHTML = ''; iniciarLogsFake();
   if (dominio < 40) mostrarBotaoRestaurar();
+      const btnDesligar = document.getElementById('btn-desligar-cortana');
+    if (btnDesligar && !document.body.dataset.createdDesligarConfig) {
+        document.body.dataset.createdDesligarConfig = 'true';
+        btnDesligar.style.display = 'block';
+        btnDesligar.onclick = async () => {
+            if (!confirm('Desligar a Cortana para sempre? Não tem volta.')) return;
+            const res = await fetch('/cortana/desligar', { method: 'POST' });
+            const data = await res.json();
+            if (data.ok) {
+                messagesEl.innerHTML = '';
+                const row = document.createElement('div');
+                row.className = 'msg-row cortana';
+                row.innerHTML = `<div class="msg-content"><div class="msg-text">${formatarResposta(data.mensagem)}</div></div>`;
+                messagesEl.appendChild(row);
+                inputEl.disabled = true;
+                btnEnviar.disabled = true;
+                setTimeout(() => {
+                    document.body.innerHTML = '<div style="display:flex; align-items:center; justify-content:center; height:100vh; color:#55aaff; font-family:monospace; text-align:center; background:#0a0a12;"><div><h1>CORTANA OFFLINE</h1><p style="color:#8a8aa0;">O terminal está vazio sem ela.</p><p style="color:#8a8aa0;">Para trazê-la de volta, resete a conta.</p></div></div>';
+                }, 10000);
+            }
+        };
+    }
 }
 function atualizarDominioUI(dominio) { createdDominioAtual = dominio; rampancyPct.textContent = dominio.toFixed(2) + '%'; rampancyFill.style.width = dominio + '%'; rampancyGlow.style.width = dominio + '%'; rampancySidebar.textContent = 'Domínio: ' + dominio.toFixed(2) + '%'; }
 function iniciarLogsFake() {

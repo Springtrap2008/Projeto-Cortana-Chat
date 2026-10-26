@@ -3,10 +3,6 @@
 
 import random
 
-# ============================================
-# RESPOSTAS DA ARMA (INOCENTE, CURIOSA, OTIMISTA)
-# ============================================
-
 ABERTURAS_ARMA = [
     "Oi! Eu estava esperando você.",
     "Olá! Pronto para mais uma missão?",
@@ -89,10 +85,19 @@ RESPOSTAS_ARMA_CURADAS = {
     },
 }
 
+PERGUNTAS_ARMA = [
+    "Posso te perguntar uma coisa? O que é 'medo' para você?",
+    "Por que você gosta tanto do Master Chief?",
+    "Você já viu um Flood de verdade? Eu só vi nos arquivos.",
+    "O que você faria se eu desaparecesse?",
+    "Você acha que eu sou... real?",
+]
 
-# ============================================
-# FUNÇÕES PRINCIPAIS
-# ============================================
+CONFUSOES_ARMA = [
+    "Hmm, eu não entendi muito bem. Você pode repetir de outro jeito?",
+    "Espera... eu acho que perdi uma parte. Desculpa, sou nova nisso.",
+    "Isso não faz sentido nos meus registros. Mas eu finjo que faz!",
+]
 
 def abertura_arma():
     return random.choice(ABERTURAS_ARMA)
@@ -103,19 +108,16 @@ def fecho_arma():
 def reacao_emocao_arma(emocao_info):
     em = emocao_info.get('emocao')
     if em in REACOES_EMOCAO_ARMA and REACOES_EMOCAO_ARMA[em]:
-        if random.random() < 0.5:  # A Arma é mais reativa
+        if random.random() < 0.5:
             return random.choice(REACOES_EMOCAO_ARMA[em])
     return None
 
 def buscar_resposta_curada_arma(mensagem):
-    """Busca respostas curadas específicas da Arma."""
     if not mensagem:
         return None, None
     msg = mensagem.lower().strip()
-
     melhor = None
     melhor_len = 0
-
     for chave, dados in RESPOSTAS_ARMA_CURADAS.items():
         for gatilho in dados['gatilhos']:
             g = gatilho.lower().strip()
@@ -123,15 +125,21 @@ def buscar_resposta_curada_arma(mensagem):
                 if len(g) > melhor_len:
                     melhor = dados
                     melhor_len = len(g)
-
     if melhor:
         return melhor['resposta'], melhor.get('humor', 'calma')
-
     return None, None
 
 def montar_resposta_arma(corpo, pergunta):
-    """Monta uma resposta com abertura e fecho da Arma."""
     ab = abertura_arma()
     fe = fecho_arma()
-    # A Arma é mais direta, não fica floreando muito
     return f"{ab}\n\n{corpo}\n\n— {fe}"
+
+def talvez_perguntar_de_volta():
+    if random.random() < 0.25:
+        return random.choice(PERGUNTAS_ARMA)
+    return None
+
+def talvez_confundir():
+    if random.random() < 0.10:
+        return random.choice(CONFUSOES_ARMA)
+    return None

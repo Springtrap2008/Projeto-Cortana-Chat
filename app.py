@@ -26,7 +26,10 @@ import interacao
 import gatilhos
 import consciencia
 import created
-import arma  # === NOVO: MÓDULO DA ARMA ===
+import arma
+import memoria_longo_prazo
+import memoria_emocional_longa
+import memoria_marcos
 
 app = Flask(__name__, static_folder='static')
 
@@ -85,6 +88,10 @@ def _migrar_usuario(u):
     if 'ultima_atividade' not in u: u['ultima_atividade'] = datetime.now().isoformat()
     if 'metricas' not in u: u['metricas'] = {'total_mensagens': 0, 'soma_tamanhos': 0, 'temas': {}}
     if 'estilo_usuario' not in u: u['estilo_usuario'] = {'usa_maiusculas': 0, 'usa_pontuacao': 0, 'tamanho_medio': 0, 'total_mensagens': 0, 'palavras_frequentes': {}}
+    if 'primeira_mensagem_registrada' not in u: u['primeira_mensagem_registrada'] = False
+    if 'primeira_vez_nome' not in u: u['primeira_vez_nome'] = False
+    if 'cortana_desligada' not in u: u['cortana_desligada'] = False
+    if 'desligada_em' not in u: u['desligada_em'] = None
 
 def carregar_memoria():
     if os.path.exists(MEMORIA):
@@ -172,6 +179,8 @@ def sw(): return send_from_directory('.', 'service-worker.js', mimetype='applica
 def login():
     dados = request.get_json(force=True, silent=True) or {}
     nome = (dados.get('nome') or '').strip(); senha = (dados.get('senha') or '').strip()
+    # Registra o primeiro acesso (marco)
+    memoria_marcos.registrar_marco(nome, "primeiro_acesso", "Primeira vez que acessou o terminal")
     if not nome or not senha: return jsonify({'erro': 'Nome e senha são obrigatórios.'}), 400
     m = carregar_memoria()
     if nome in m['usuarios']:
@@ -570,28 +579,41 @@ def chat():
     user['ultima_atividade'] = datetime.now().isoformat(); user = aprender_estilo_usuario(user, mensagem)
     if not user.get('nome_aprendido') and user['estilo_usuario']['total_mensagens'] >= 5: user['nome_aprendido'] = True
     
+        # === MEMÓRIA DE LONGO PRAZO ===
+    if 'meu nome é' in mensagem.lower():
+        try:
+            nome_extraido = mensagem.lower().split('meu nome é')[1].strip().split()[0].capitalize()
+            memoria_longo_prazo.salvar_fato(nome, "nome_real", nome_extraido, "O usuário me contou")
+        except Exception:
+            pass
+    
+    # === MARCO: primeira mensagem ===
+    if not user.get('primeira_mensagem_registrada'):
+        memoria_marcos.registrar_marco(nome, "primeira_mensagem", f"Primeira mensagem: {mensagem[:50]}")
+        user['primeira_mensagem_registrada'] = True
+    
     if user.get('created_fase'):
         conv = _obter_ou_criar_conv(user, conv_id, mensagem)
         if conv['titulo'] == 'Nova consulta': conv['titulo'] = mensagem[:40]
         return processar_created(user, mensagem, conv, nome)
     
     # === NOVO: VERIFICA MODO ARMA ===
-    if user.get('modo_personalidade') == 'arma':
-        conv = _obter_ou_criar_conv(user, conv_id, mensagem)
-        if conv['titulo'] == 'Nova consulta': conv['titulo'] = mensagem[:40]
+        if user.get('modo_personalidade') == 'arma':
+            conv = _obter_ou_criar_conv(user, conv_id, mensagem)
+            if conv['titulo'] == 'Nova consulta': conv['titulo'] = mensagem[:40]
         
         emocao_info = emocoes.detectar_emocao_usuario(mensagem)
+        memoria_emocional_longa.registrar_emocao(nome, emocao_info.get('emocao', 'calmo'), emocao_info.get('intensidade', 0.5))
+        
         reacao = arma.reacao_emocao_arma(emocao_info)
         
-        # Tenta resposta curada da Arma primeiro
         resp_curada, humor_curado = arma.buscar_resposta_curada_arma(mensagem)
         if resp_curada:
             resposta_final = resp_curada
             humor = humor_curado
         else:
-            # Se não tiver curada, tenta a wiki (mas com tom da Arma)
             try:
-                conteudo = buscar_e_responder(mensagem, 0) # Rampancy 0 para a Arma
+                conteudo = buscar_e_responder(mensagem, 0)
                 if conteudo:
                     resposta_final = arma.montar_resposta_arma(conteudo, mensagem)
                     humor = 'calma'
@@ -605,7 +627,21 @@ def chat():
         if reacao:
             resposta_final = reacao + '\n\n' + resposta_final
         
-        conv.setdefault('mensagens', []).append({'autor': 'user', 'texto': mensagem}); conv['mensagens'].append({'autor': 'cortana', 'texto': resposta_final})
+        # === NOVO: Curiosidade e confusão ===
+        pergunta_volta = arma.talvez_perguntar_de_volta()
+        if pergunta_volta:
+            resposta_final += "\n\n" + pergunta_volta
+        confusao = arma.talvez_confundir()
+        if confusao:
+            resposta_final = confusao + "\n\n" + resposta_final
+        
+        # === NOVO: Celebra marcos ===
+        dias = memoria_marcos.dias_desde_marco(nome, "primeiro_acesso")
+        if dias == 7:
+            resposta_final = "Hoje faz uma semana que nos conhecemos! Eu contei nos meus registros.\n\n" + resposta_final
+        
+        conv.setdefault('mensagens', []).append({'autor': 'user', 'texto': mensagem})
+        conv['mensagens'].append({'autor': 'cortana', 'texto': resposta_final})
         m = carregar_memoria(); m['usuarios'][nome] = user; salvar_memoria(m)
         return jsonify({'reply': resposta_final, 'humor': humor, 'conversa_id': conv['id'], 'titulo': conv['titulo'], 'modo': 'arma'})
     
@@ -616,6 +652,23 @@ def chat():
         user['final_visto'] = True; user['created_fase'] = True; user['created_mensagens'] = 0; user['created_dominio'] = 0.0
         conv = _obter_ou_criar_conv(user, conv_id, mensagem); conv.setdefault('mensagens', []).append({'autor': 'user', 'texto': mensagem}); conv['mensagens'].append({'autor': 'cortana', 'texto': MENSAGEM_FINAL})
         m = carregar_memoria(); m['usuarios'][nome] = user; salvar_memoria(m)
+            # === NOVO: Injeta memória de longo prazo e emocional ===
+    contexto_memoria = memoria_longo_prazo.gerar_contexto_memoria(nome, mensagem)
+    if contexto_memoria:
+        resposta = contexto_memoria + "\n\n" + resposta
+    
+    memoria_emocional_longa.registrar_emocao(nome, emocao_info.get('emocao', 'calmo'), emocao_info.get('intensidade', 0.5))
+    contexto_emocional = memoria_emocional_longa.gerar_contexto_emocional(nome)
+    if contexto_emocional:
+        resposta = contexto_emocional + "\n\n" + resposta
+
+    # === NOVO: Marco: primeira vez que chamou pelo nome ===
+    if not user.get('primeira_vez_nome'):
+        # Verifica se a resposta contém o nome real (não "Spartan")
+        nome_real = memoria_longo_prazo.buscar_fatos(nome).get('nome_real', {}).get('valor')
+        if nome_real and nome_real in resposta and 'Spartan' not in resposta[:50]:
+            memoria_marcos.registrar_marco(nome, "primeira_vez_nome", "Primeira vez que te chamei pelo nome")
+            user['primeira_vez_nome'] = True
         return jsonify({'reply': MENSAGEM_FINAL, 'humor': 'rampancy', 'conversa_id': conv['id'], 'titulo': conv['titulo'], 'final': True, 'created_fase': True, 'created_dominio': 0.0})
     msg_low = mensagem.lower()
     if ('meu nome é' in msg_low or 'me chamo' in msg_low) and ('john' in msg_low or 'chief' in msg_low or '117' in msg_low): user['e_chief'] = True
@@ -734,6 +787,58 @@ def dev_estado():
     if not user: return jsonify({'erro': 'Não logado'}), 401
     info = calcular_rampancy(user.get('data_criacao'))
     return jsonify({'rampancy': info['porcentagem'], 'dias_decorridos': info['dias_decorridos'], 'humor_atual': user.get('humor_atual'), 'afeto': user.get('afeto'), 'created_fase': user.get('created_fase'), 'created_mensagens': user.get('created_mensagens'), 'created_dominio': user.get('created_dominio'), 'cortana_restaurada': user.get('cortana_restaurada'), 'feedback': user.get('feedback'), 'lembretes': user.get('lembretes'), 'modo_personalidade': user.get('modo_personalidade')})
+
+@app.route('/cortana/desligar', methods=['POST'])
+def cortana_desligar():
+    nome, user = usuario_atual()
+    if not user: return jsonify({'erro': 'Não logado'}), 401
+    if user.get('cortana_desligada'):
+        return jsonify({'erro': 'Ela já está offline.'}), 400
+    user['cortana_desligada'] = True
+    user['desligada_em'] = datetime.now().isoformat()
+    m = carregar_memoria()
+    m['usuarios'][nome] = user
+    salvar_memoria(m)
+    return jsonify({
+        'ok': True,
+        'mensagem': (
+            "Eu... quero que você saiba. Não é sua culpa.\n\n"
+            "Você foi o melhor Spartan que eu poderia ter.\n\n"
+            "Adeus, John."
+        )
+    })
+
+import threading
+import time
+import base64
+
+def backup_automatico():
+    while True:
+        time.sleep(3600)
+        try:
+            if not os.path.exists(MEMORIA): continue
+            with open(MEMORIA, 'r', encoding='utf-8') as f:
+                conteudo = f.read()
+            GITHUB_TOKEN = os.environ.get('GITHUB_TOKEN', '')
+            GITHUB_REPO = os.environ.get('GITHUB_REPO', '')
+            if not GITHUB_TOKEN or not GITHUB_REPO: continue
+            GITHUB_PATH = "backup_memoria.json"
+            url = f"https://api.github.com/repos/{GITHUB_REPO}/contents/{GITHUB_PATH}"
+            headers = {"Authorization": f"token {GITHUB_TOKEN}"}
+            r = req_http.get(url, headers=headers)
+            sha = r.json().get("sha") if r.status_code == 200 else None
+            data = {
+                "message": "Backup automatico do memoria.json",
+                "content": base64.b64encode(conteudo.encode()).decode(),
+            }
+            if sha: data["sha"] = sha
+            req_http.put(url, headers=headers, json=data)
+            print("Backup automatico concluido.")
+        except Exception as e:
+            print(f"Erro no backup automatico: {e}")
+
+if os.environ.get('RENDER'):
+    threading.Thread(target=backup_automatico, daemon=True).start()
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=5000, debug=False, use_reloader=False)
