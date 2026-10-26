@@ -952,3 +952,142 @@ body.hack-ativo::after {
     text-shadow: 0 0 8px #ff3355;
     animation: glitchText 2s infinite;
 }
+
+/* ============================================
+   FASE 1: NOVOS BOTÕES E INTERAÇÕES
+   ============================================ */
+
+/* Botões de ação nas mensagens (copiar, editar, regenerar) */
+.msg-actions {
+    display: flex;
+    gap: 6px;
+    margin-top: 6px;
+    opacity: 0;
+    transition: opacity 0.2s;
+}
+.msg-row:hover .msg-actions,
+.msg-row.user:hover .msg-actions {
+    opacity: 1;
+}
+.msg-action-btn {
+    background: transparent;
+    border: 1px solid var(--border);
+    color: var(--texto-fraco);
+    padding: 2px 6px;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 12px;
+    transition: 0.15s;
+}
+.msg-action-btn:hover {
+    background: var(--bg-hover);
+    color: var(--cor-primaria);
+    border-color: var(--cor-primaria);
+}
+.msg-row.user .msg-actions {
+    justify-content: flex-end;
+}
+
+/* Botão de parar (substitui o enviar enquanto digita) */
+.btn-enviar.parando {
+    background: #ff3355;
+    box-shadow: 0 0 20px #ff3355;
+    color: #fff;
+    animation: pulsarParar 1s infinite;
+}
+@keyframes pulsarParar {
+    0%, 100% { transform: scale(1); }
+    50% { transform: scale(1.1); }
+}
+
+/* Seta de scroll to bottom */
+#btn-scroll-bottom {
+    position: absolute;
+    bottom: 100px;
+    right: 24px;
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    background: var(--cor-primaria);
+    color: #0a0a12;
+    border: none;
+    cursor: pointer;
+    font-size: 20px;
+    font-weight: bold;
+    z-index: 10;
+    box-shadow: 0 0 20px var(--cor-primaria);
+    transition: 0.2s;
+}
+#btn-scroll-bottom:hover {
+    transform: scale(1.1);
+    box-shadow: 0 0 30px var(--cor-primaria);
+}
+#btn-scroll-bottom.oculto {
+    display: none;
+}
+
+/* Container de sugestões de prompt */
+#sugestoes-prompt {
+    position: absolute;
+    bottom: 140px;
+    left: 50%;
+    transform: translateX(-50%);
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    align-items: center;
+    z-index: 8;
+    pointer-events: auto;
+    max-width: 500px;
+    width: 90%;
+}
+#sugestoes-prompt p {
+    font-size: 11px;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    color: var(--texto-fraco);
+    margin-bottom: 4px;
+}
+.sugestao-btn {
+    width: 100%;
+    padding: 10px 16px;
+    background: rgba(14, 14, 24, 0.9);
+    border: 1px solid var(--cor-primaria);
+    color: var(--texto);
+    border-radius: 10px;
+    cursor: pointer;
+    font-size: 13px;
+    text-align: left;
+    transition: 0.2s;
+    box-shadow: 0 0 15px rgba(170, 136, 255, 0.1);
+}
+.sugestao-btn:hover {
+    background: var(--bg-hover);
+    border-color: var(--cor-secundaria);
+    box-shadow: 0 0 20px var(--cor-primaria);
+    transform: translateY(-1px);
+}
+#sugestoes-prompt.oculto {
+    display: none;
+}
+
+/* Ajustes no mobile */
+@media (max-width: 768px) {
+    .msg-actions {
+        opacity: 1; /* No celular, os botões ficam sempre visíveis */
+    }
+    #sugestoes-prompt {
+        bottom: 120px;
+        width: 95%;
+    }
+    .sugestao-btn {
+        font-size: 12px;
+        padding: 8px 12px;
+    }
+    #btn-scroll-bottom {
+        bottom: 90px;
+        right: 16px;
+        width: 36px;
+        height: 36px;
+    }
+}

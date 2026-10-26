@@ -1,5 +1,5 @@
 // ============================================
-// CORTANA CHAT - JS COMPLETO + SELEÇÃO + DIGITAÇÃO MECÂNICA
+// CORTANA CHAT - JS COMPLETO + FASE 1
 // ============================================
 
 const messagesEl = document.getElementById('messages');
@@ -33,6 +33,10 @@ const topbarNome = document.getElementById('topbar-nome');
 const createdConsole = document.getElementById('created-console');
 const createdLogs = document.getElementById('created-logs');
 
+// FASE 1: Novos elementos
+const btnScrollBottom = document.getElementById('btn-scroll-bottom');
+const sugestoesPrompt = document.getElementById('sugestoes-prompt');
+
 let micAtivo = false;
 let enviando = false;
 let conversaAtualId = null;
@@ -51,6 +55,10 @@ let createdConsoleTimer = null;
 let createdDominioAtual = 0;
 let rampancyAtualPct = 0;
 let inputBloqueado = false;
+
+// FASE 1: Controle de digitação
+let digitandoAtivo = false;
+let digitacaoCancelada = false;
 
 // ÁUDIO
 let audioCtx = null;
@@ -119,7 +127,6 @@ if (btnSom) {
 loginForm.addEventListener('submit', async (e) => {
   e.preventDefault();
 
-  // Inicia o áudio no clique do login (Safari exige interação)
   if (!somLigado) {
     somLigado = true;
     localStorage.setItem('cortana_som', 'on');
@@ -699,7 +706,6 @@ async function abrirConversa(id) {
       for (const m of conv.mensagens) {
         const voz = m.voz || 'normal';
         if (m.autor === 'cortana') {
-          // Leitura mecânica rápida para mensagens antigas
           await digitarTexto(m.texto, 5, voz);
           await new Promise(r => setTimeout(r, 100));
         } else {
@@ -712,6 +718,7 @@ async function abrirConversa(id) {
     renderizarHistorico();
     inputEl.focus();
     resetarAtividade();
+    atualizarBotaoScroll();
   } catch (e) {}
 }
 
@@ -735,6 +742,8 @@ function iniciarConversaVazia() {
     'tecnologia, planetas ou eventos históricos do universo de Halo.');
   renderizarHistorico();
   inputEl.focus();
+  mostrarSugestoes(true);
+  atualizarBotaoScroll();
 }
 
 // ============================================
@@ -753,6 +762,8 @@ btnNova.addEventListener('click', async () => {
     renderizarHistorico();
     inputEl.focus();
     resetarAtividade();
+    mostrarSugestoes(false);
+    atualizarBotaoScroll();
   } catch (e) {}
 });
 
@@ -769,12 +780,15 @@ async function enviar() {
 
   resetarAtividade();
   enviando = true;
+  digitandoAtivo = false;
+  digitacaoCancelada = false;
   btnEnviar.disabled = true;
 
   renderizarMensagem('user', msg);
   inputEl.value = '';
   inputEl.style.height = 'auto';
   inputEl.focus();
+  mostrarSugestoes(false);
 
   mostrarDigitando();
   statusEl.textContent = createdFaseAtiva ? 'Sincronizando com o Domínio...' : 'Consultando arquivos da ONI...';
@@ -800,6 +814,12 @@ async function enviar() {
 
     if (data.sonho) await rodarSonho(data.sonho);
 
+    // Inicia digitação mecânica
+    digitandoAtivo = true;
+    btnEnviar.classList.add('parando');
+    btnEnviar.innerHTML = '<span>■</span>';
+    btnEnviar.disabled = false;
+
     if (data.instancias && data.instancias.length > 0) {
       for (const inst of data.instancias) {
         const voz = inst.voz || 'normal';
@@ -809,6 +829,11 @@ async function enviar() {
     } else {
       await digitarTexto(data.reply);
     }
+
+    digitandoAtivo = false;
+    btnEnviar.classList.remove('parando');
+    btnEnviar.innerHTML = '<span>➤</span>';
+    btnEnviar.disabled = false;
 
     definirHumor(data.humor || 'neutra');
 
@@ -842,9 +867,28 @@ async function enviar() {
     renderizarMensagem('cortana', 'Interferência detectada. Tente novamente.');
   } finally {
     enviando = false;
+    digitandoAtivo = false;
+    btnEnviar.classList.remove('parando');
+    btnEnviar.innerHTML = '<span>➤</span>';
     if (!inputBloqueado) btnEnviar.disabled = false;
+    atualizarBotaoScroll();
   }
 }
+
+// FASE 1: Botão de parar (clique no enviar enquanto digita)
+btnEnviar.addEventListener('click', (e) => {
+  if (digitandoAtivo) {
+    e.preventDefault();
+    digitacaoCancelada = true;
+    digitandoAtivo = false;
+    btnEnviar.classList.remove('parando');
+    btnEnviar.innerHTML = '<span>➤</span>';
+    btnEnviar.disabled = false;
+    adicionarMensagemSistema('Processo interrompido pelo usuário.');
+    return;
+  }
+  enviar();
+});
 
 // ============================================
 // RENDERIZAÇÃO
@@ -874,6 +918,34 @@ function renderizarMensagem(autor, texto, voz = 'normal') {
   textEl.className = 'msg-text';
   textEl.innerHTML = formatarResposta(texto);
   content.appendChild(textEl);
+
+  // FASE 1: Botões de ação (copiar e regenerar)
+  const actions = document.createElement('div');
+  actions.className = 'msg-actions';
+  if (autor === 'cortana') {
+    const btnCopiar = document.createElement('button');
+    btnCopiar.className = 'msg-action-btn';
+    btnCopiar.textContent = '📋';
+    btnCopiar.title = 'Copiar mensagem';
+    btnCopiar.addEventListener('click', () => copiarTexto(texto));
+    actions.appendChild(btnCopiar);
+
+    const btnRegenerar = document.createElement('button');
+    btnRegenerar.className = 'msg-action-btn';
+    btnRegenerar.textContent = '🔄';
+    btnRegenerar.title = 'Regenerar resposta';
+    btnRegenerar.addEventListener('click', () => regenerarResposta(row));
+    actions.appendChild(btnRegenerar);
+  } else {
+    const btnEditar = document.createElement('button');
+    btnEditar.className = 'msg-action-btn';
+    btnEditar.textContent = '✏️';
+    btnEditar.title = 'Editar mensagem';
+    btnEditar.addEventListener('click', () => editarMensagem(row, texto));
+    actions.appendChild(btnEditar);
+  }
+  content.appendChild(actions);
+
   row.appendChild(content);
   messagesEl.appendChild(row);
   textEl.scrollIntoView({ behavior: 'smooth', block: 'end' });
@@ -904,7 +976,7 @@ function removerDigitando() {
 }
 
 // ============================================
-// DIGITAÇÃO MECÂNICA (ESTILO TERMINAL ANTIGO)
+// DIGITAÇÃO MECÂNICA
 // ============================================
 async function digitarTexto(texto, delayBase = 20, voz = 'normal') {
   const row = document.createElement('div');
@@ -931,6 +1003,10 @@ async function digitarTexto(texto, delayBase = 20, voz = 'normal') {
   let i = 0;
 
   while (i < html.length) {
+    if (digitacaoCancelada) {
+      textEl.innerHTML = html;
+      break;
+    }
     if (html[i] === '<') {
       const fim = html.indexOf('>', i);
       if (fim !== -1) { acumulado += html.substring(i, fim + 1); i = fim + 1; continue; }
@@ -953,6 +1029,25 @@ async function digitarTexto(texto, delayBase = 20, voz = 'normal') {
     i++;
     await new Promise(r => setTimeout(r, delay));
   }
+
+  // Adiciona os botões de ação na mensagem gerada
+  const content = row.querySelector('.msg-content');
+  const actions = document.createElement('div');
+  actions.className = 'msg-actions';
+  const btnCopiar = document.createElement('button');
+  btnCopiar.className = 'msg-action-btn';
+  btnCopiar.textContent = '📋';
+  btnCopiar.title = 'Copiar mensagem';
+  btnCopiar.addEventListener('click', () => copiarTexto(texto));
+  actions.appendChild(btnCopiar);
+
+  const btnRegenerar = document.createElement('button');
+  btnRegenerar.className = 'msg-action-btn';
+  btnRegenerar.textContent = '🔄';
+  btnRegenerar.title = 'Regenerar resposta';
+  btnRegenerar.addEventListener('click', () => regenerarResposta(row));
+  actions.appendChild(btnRegenerar);
+  content.appendChild(actions);
 }
 
 function formatarResposta(texto) {
@@ -985,6 +1080,97 @@ function formatarTempoRestante(segundos) {
   if (dias > 0) return `${dias}d ${horas}h`;
   return `${horas}h`;
 }
+
+// ============================================
+// FASE 1: FUNÇÕES DE AÇÃO
+// ============================================
+function copiarTexto(texto) {
+  navigator.clipboard.writeText(texto).then(() => {
+    adicionarMensagemSistema('Dados copiados para o terminal local.');
+  }).catch(() => {
+    adicionarMensagemSistema('Falha ao copiar. Tente novamente.');
+  });
+}
+
+function editarMensagem(row, texto) {
+  const confirmar = confirm('Editar esta mensagem? A resposta anterior será apagada.');
+  if (!confirmar) return;
+  inputEl.value = texto;
+  inputEl.focus();
+  inputEl.dispatchEvent(new Event('input'));
+  // Remove a mensagem e a resposta seguinte (se for da Cortana)
+  const nextRow = row.nextElementSibling;
+  row.remove();
+  if (nextRow && nextRow.classList.contains('cortana')) nextRow.remove();
+}
+
+function regenerarResposta(row) {
+  const confirmar = confirm('Regenerar esta resposta?');
+  if (!confirmar) return;
+  // Encontra a mensagem do usuário anterior a esta resposta
+  const prevRow = row.previousElementSibling;
+  if (!prevRow || !prevRow.classList.contains('user')) return;
+  const msgUsuario = prevRow.querySelector('.msg-text').innerText;
+  row.remove();
+  prevRow.remove();
+  inputEl.value = msgUsuario;
+  enviar();
+}
+
+function adicionarMensagemSistema(texto) {
+  const row = document.createElement('div');
+  row.className = 'msg-row cortana';
+  row.innerHTML = `
+    <div class="msg-content">
+      <div class="msg-text" style="color: var(--cor-secundaria); font-style: italic; font-size: 12px;">
+        [SISTEMA] ${texto}
+      </div>
+    </div>
+  `;
+  messagesEl.appendChild(row);
+  row.scrollIntoView({ behavior: 'smooth', block: 'end' });
+  setTimeout(() => {
+    row.style.transition = 'opacity 1s';
+    row.style.opacity = '0';
+    setTimeout(() => row.remove(), 1000);
+  }, 3000);
+}
+
+// ============================================
+// FASE 1: SCROLL TO BOTTOM
+// ============================================
+function atualizarBotaoScroll() {
+  const scrollBottom = messagesEl.scrollHeight - messagesEl.scrollTop - messagesEl.clientHeight;
+  if (scrollBottom > 150) {
+    btnScrollBottom.classList.remove('oculto');
+  } else {
+    btnScrollBottom.classList.add('oculto');
+  }
+}
+
+messagesEl.addEventListener('scroll', atualizarBotaoScroll);
+
+btnScrollBottom.addEventListener('click', () => {
+  messagesEl.scrollTo({ top: messagesEl.scrollHeight, behavior: 'smooth' });
+});
+
+// ============================================
+// FASE 1: SUGESTÕES DE PROMPT
+// ============================================
+function mostrarSugestoes(mostrar) {
+  if (mostrar && messagesEl.children.length <= 1) {
+    sugestoesPrompt.classList.remove('oculto');
+  } else {
+    sugestoesPrompt.classList.add('oculto');
+  }
+}
+
+document.querySelectorAll('.sugestao-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    inputEl.value = btn.dataset.prompt;
+    enviar();
+  });
+});
 
 // ============================================
 // MICROFONE
@@ -1021,7 +1207,6 @@ inputEl.addEventListener('input', () => {
   inputEl.style.height = Math.min(inputEl.scrollHeight, 200) + 'px';
 });
 
-btnEnviar.addEventListener('click', enviar);
 inputEl.addEventListener('keydown', (e) => {
   if (e.key === 'Enter' && !e.shiftKey) {
     e.preventDefault();
@@ -1034,7 +1219,7 @@ document.addEventListener('keypress', resetarAtividade);
 inputEl.addEventListener('focus', resetarAtividade);
 
 // ============================================
-// SELEÇÃO DE TEXTO (PERGUNTAR SOBRE ISSO)
+// SELEÇÃO DE TEXTO
 // ============================================
 let botaoSelecao = null;
 
@@ -1047,7 +1232,6 @@ document.addEventListener('mouseup', (e) => {
     return;
   }
 
-  // Verifica se a seleção está dentro de uma mensagem da Cortana
   const range = selecao.getRangeAt(0);
   const container = range.commonAncestorContainer;
   const msgRow = container.nodeType === 3 ? container.parentElement.closest('.msg-row') : container.closest('.msg-row');
