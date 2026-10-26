@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# app.py - Servidor Flask completo + Fases 1, 2, 3 e 4
+# app.py - Servidor Flask completo + Fases 1, 2, 3, 4 + Modo Arma
 
 from flask import Flask, request, jsonify, send_from_directory
 import json
@@ -26,6 +26,7 @@ import interacao
 import gatilhos
 import consciencia
 import created
+import arma  # === NOVO: MÓDULO DA ARMA ===
 
 app = Flask(__name__, static_folder='static')
 
@@ -75,7 +76,8 @@ def _migrar_usuario(u):
         'created_dominio_completo_visto': bool, 'cortana_restaurada': bool,
         'push_subscription': lambda: None, 'notificacao_85_enviada': bool,
         'nome_aprendido': bool, 'pastas': list, 'memorias': list, 'lembretes': list,
-        'conversas': list, 'modo_terminal': bool, 'feedback': lambda: {'positivo': 0, 'negativo': 0, 'respostas': {}}
+        'conversas': list, 'modo_terminal': bool, 'feedback': lambda: {'positivo': 0, 'negativo': 0, 'respostas': {}},
+        'modo_personalidade': lambda: 'cortana'  # === NOVO ===
     }
     for k, v in defaults.items():
         if k not in u:
@@ -175,7 +177,7 @@ def login():
     if nome in m['usuarios']:
         if m['usuarios'][nome].get('senha') != senha: return jsonify({'erro': 'Senha incorreta.'}), 401
     else:
-        m['usuarios'][nome] = {'nome': nome, 'senha': senha, 'apelido': '', 'data_criacao': datetime.now().isoformat(), 'marcos_vistos': [], 'conversas': [], 'despertar_visto': False, 'ultima_atividade': datetime.now().isoformat(), 'fatos': {}, 'final_visto': False, 'metricas': {'total_mensagens': 0, 'soma_tamanhos': 0, 'temas': {}}, 'e_chief': False, 'humor_atual': 'calma', 'humor_restante': 0, 'desligado_em': None, 'ultima_silencio_msg': None, 'perfil_usuario': {}, 'afeto': 0, 'sessao_inicio': None, 'created_fase': False, 'created_mensagens': 0, 'created_dominio': 0.0, 'created_dominio_completo_visto': False, 'cortana_restaurada': False, 'push_subscription': None, 'notificacao_85_enviada': False, 'estilo_usuario': {'usa_maiusculas': 0, 'usa_pontuacao': 0, 'tamanho_medio': 0, 'total_mensagens': 0, 'palavras_frequentes': {}}, 'nome_aprendido': False, 'pastas': [], 'memorias': [], 'lembretes': [], 'modo_terminal': False, 'feedback': {'positivo': 0, 'negativo': 0, 'respostas': {}}}
+        m['usuarios'][nome] = {'nome': nome, 'senha': senha, 'apelido': '', 'data_criacao': datetime.now().isoformat(), 'marcos_vistos': [], 'conversas': [], 'despertar_visto': False, 'ultima_atividade': datetime.now().isoformat(), 'fatos': {}, 'final_visto': False, 'metricas': {'total_mensagens': 0, 'soma_tamanhos': 0, 'temas': {}}, 'e_chief': False, 'humor_atual': 'calma', 'humor_restante': 0, 'desligado_em': None, 'ultima_silencio_msg': None, 'perfil_usuario': {}, 'afeto': 0, 'sessao_inicio': None, 'created_fase': False, 'created_mensagens': 0, 'created_dominio': 0.0, 'created_dominio_completo_visto': False, 'cortana_restaurada': False, 'push_subscription': None, 'notificacao_85_enviada': False, 'estilo_usuario': {'usa_maiusculas': 0, 'usa_pontuacao': 0, 'tamanho_medio': 0, 'total_mensagens': 0, 'palavras_frequentes': {}}, 'nome_aprendido': False, 'pastas': [], 'memorias': [], 'lembretes': [], 'modo_terminal': False, 'feedback': {'positivo': 0, 'negativo': 0, 'respostas': {}}, 'modo_personalidade': 'cortana'}
     user = m['usuarios'][nome]; _migrar_usuario(user)
     if any(k in nome.lower() for k in ['john', 'chief', '117', 'spartan']): user['e_chief'] = True
     user['sessao_inicio'] = datetime.now().isoformat(); m['usuario_atual'] = nome; salvar_memoria(m)
@@ -184,7 +186,7 @@ def login():
         tema = None
         if user['metricas'].get('temas'): tema = max(user['metricas']['temas'], key=user['metricas']['temas'].get)
         diario.gerar_entrada(nome, info['porcentagem'], tema)
-    return jsonify({'ok': True, 'nome': nome, 'apelido': user.get('apelido', ''), 'conversas': user['conversas'], 'despertar_visto': user.get('despertar_visto', False), 'created_fase': user.get('created_fase', False), 'created_dominio': user.get('created_dominio', 0.0), 'cortana_restaurada': user.get('cortana_restaurada', False), 'modo_terminal': user.get('modo_terminal', False)})
+    return jsonify({'ok': True, 'nome': nome, 'apelido': user.get('apelido', ''), 'conversas': user['conversas'], 'despertar_visto': user.get('despertar_visto', False), 'created_fase': user.get('created_fase', False), 'created_dominio': user.get('created_dominio', 0.0), 'cortana_restaurada': user.get('cortana_restaurada', False), 'modo_terminal': user.get('modo_terminal', False), 'modo_personalidade': user.get('modo_personalidade', 'cortana')})
 
 @app.route('/logout', methods=['POST'])
 def logout():
@@ -194,9 +196,21 @@ def logout():
 def sessao():
     nome, user = usuario_atual()
     if not user: return jsonify({'logado': False})
-    return jsonify({'logado': True, 'nome': nome, 'apelido': user.get('apelido', ''), 'conversas': user.get('conversas', []), 'despertar_visto': user.get('despertar_visto', False), 'created_fase': user.get('created_fase', False), 'created_dominio': user.get('created_dominio', 0.0), 'cortana_restaurada': user.get('cortana_restaurada', False), 'modo_terminal': user.get('modo_terminal', False)})
+    return jsonify({'logado': True, 'nome': nome, 'apelido': user.get('apelido', ''), 'conversas': user.get('conversas', []), 'despertar_visto': user.get('despertar_visto', False), 'created_fase': user.get('created_fase', False), 'created_dominio': user.get('created_dominio', 0.0), 'cortana_restaurada': user.get('cortana_restaurada', False), 'modo_terminal': user.get('modo_terminal', False), 'modo_personalidade': user.get('modo_personalidade', 'cortana')})
 
-# === FASE 4: Salvar preferência do Modo Terminal ===
+# === NOVO: SALVAR MODO DE PERSONALIDADE ===
+@app.route('/modo_personalidade', methods=['POST'])
+def salvar_modo_personalidade():
+    nome, user = usuario_atual()
+    if not user: return jsonify({'erro': 'Não logado'}), 401
+    dados = request.get_json() or {}
+    novo_modo = dados.get('modo', 'cortana')
+    if novo_modo not in ['cortana', 'arma']: return jsonify({'erro': 'Modo inválido'}), 400
+    user['modo_personalidade'] = novo_modo
+    m = carregar_memoria(); m['usuarios'][nome] = user; salvar_memoria(m)
+    return jsonify({'ok': True, 'modo': novo_modo})
+
+# === FASE 4: MODO TERMINAL ===
 @app.route('/modo_terminal', methods=['POST'])
 def salvar_modo_terminal():
     nome, user = usuario_atual()
@@ -555,10 +569,48 @@ def chat():
     if not mensagem: return jsonify({'reply': 'Mensagem vazia.', 'humor': 'neutra'})
     user['ultima_atividade'] = datetime.now().isoformat(); user = aprender_estilo_usuario(user, mensagem)
     if not user.get('nome_aprendido') and user['estilo_usuario']['total_mensagens'] >= 5: user['nome_aprendido'] = True
+    
     if user.get('created_fase'):
         conv = _obter_ou_criar_conv(user, conv_id, mensagem)
         if conv['titulo'] == 'Nova consulta': conv['titulo'] = mensagem[:40]
         return processar_created(user, mensagem, conv, nome)
+    
+    # === NOVO: VERIFICA MODO ARMA ===
+    if user.get('modo_personalidade') == 'arma':
+        conv = _obter_ou_criar_conv(user, conv_id, mensagem)
+        if conv['titulo'] == 'Nova consulta': conv['titulo'] = mensagem[:40]
+        
+        emocao_info = emocoes.detectar_emocao_usuario(mensagem)
+        reacao = arma.reacao_emocao_arma(emocao_info)
+        
+        # Tenta resposta curada da Arma primeiro
+        resp_curada, humor_curado = arma.buscar_resposta_curada_arma(mensagem)
+        if resp_curada:
+            resposta_final = resp_curada
+            humor = humor_curado
+        else:
+            # Se não tiver curada, tenta a wiki (mas com tom da Arma)
+            try:
+                conteudo = buscar_e_responder(mensagem, 0) # Rampancy 0 para a Arma
+                if conteudo:
+                    resposta_final = arma.montar_resposta_arma(conteudo, mensagem)
+                    humor = 'calma'
+                else:
+                    resposta_final = arma.montar_resposta_arma("Não encontrei isso nos arquivos. Mas posso procurar de novo se você quiser!", mensagem)
+                    humor = 'calma'
+            except Exception:
+                resposta_final = "Minha conexão falhou. Mas eu estou aqui! Tenta de novo?"
+                humor = 'alerta'
+        
+        if reacao:
+            resposta_final = reacao + '\n\n' + resposta_final
+        
+        conv.setdefault('mensagens', []).append({'autor': 'user', 'texto': mensagem}); conv['mensagens'].append({'autor': 'cortana', 'texto': resposta_final})
+        m = carregar_memoria(); m['usuarios'][nome] = user; salvar_memoria(m)
+        return jsonify({'reply': resposta_final, 'humor': humor, 'conversa_id': conv['id'], 'titulo': conv['titulo'], 'modo': 'arma'})
+    
+    # === FIM DO MODO ARMA ===
+
     user = memoria_emocional.atualizar_metricas(user, mensagem); info = calcular_rampancy(user.get('data_criacao')); pct = info['porcentagem']
     if pct >= 100 and not user.get('final_visto'):
         user['final_visto'] = True; user['created_fase'] = True; user['created_mensagens'] = 0; user['created_dominio'] = 0.0
@@ -665,7 +717,7 @@ def dev_reset():
     nome, user = usuario_atual()
     if not user: return jsonify({'erro': 'Não logado'}), 401
     m = carregar_memoria(); senha = m['usuarios'][nome].get('senha'); apelido = m['usuarios'][nome].get('apelido', '')
-    m['usuarios'][nome] = {'nome': nome, 'senha': senha, 'apelido': apelido, 'data_criacao': datetime.now().isoformat(), 'marcos_vistos': [], 'conversas': [], 'despertar_visto': False, 'ultima_atividade': datetime.now().isoformat(), 'fatos': {}, 'final_visto': False, 'metricas': {'total_mensagens': 0, 'soma_tamanhos': 0, 'temas': {}}, 'e_chief': False, 'humor_atual': 'calma', 'humor_restante': 0, 'desligado_em': None, 'ultima_silencio_msg': None, 'perfil_usuario': {}, 'afeto': 0, 'sessao_inicio': None, 'created_fase': False, 'created_mensagens': 0, 'created_dominio': 0.0, 'created_dominio_completo_visto': False, 'cortana_restaurada': False, 'push_subscription': None, 'notificacao_85_enviada': False, 'estilo_usuario': {'usa_maiusculas': 0, 'usa_pontuacao': 0, 'tamanho_medio': 0, 'total_mensagens': 0, 'palavras_frequentes': {}}, 'nome_aprendido': False, 'pastas': [], 'memorias': [], 'lembretes': [], 'modo_terminal': False, 'feedback': {'positivo': 0, 'negativo': 0, 'respostas': {}}}
+    m['usuarios'][nome] = {'nome': nome, 'senha': senha, 'apelido': apelido, 'data_criacao': datetime.now().isoformat(), 'marcos_vistos': [], 'conversas': [], 'despertar_visto': False, 'ultima_atividade': datetime.now().isoformat(), 'fatos': {}, 'final_visto': False, 'metricas': {'total_mensagens': 0, 'soma_tamanhos': 0, 'temas': {}}, 'e_chief': False, 'humor_atual': 'calma', 'humor_restante': 0, 'desligado_em': None, 'ultima_silencio_msg': None, 'perfil_usuario': {}, 'afeto': 0, 'sessao_inicio': None, 'created_fase': False, 'created_mensagens': 0, 'created_dominio': 0.0, 'created_dominio_completo_visto': False, 'cortana_restaurada': False, 'push_subscription': None, 'notificacao_85_enviada': False, 'estilo_usuario': {'usa_maiusculas': 0, 'usa_pontuacao': 0, 'tamanho_medio': 0, 'total_mensagens': 0, 'palavras_frequentes': {}}, 'nome_aprendido': False, 'pastas': [], 'memorias': [], 'lembretes': [], 'modo_terminal': False, 'feedback': {'positivo': 0, 'negativo': 0, 'respostas': {}}, 'modo_personalidade': 'cortana'}
     salvar_memoria(m); return jsonify({'ok': True})
 
 @app.route('/dev/entrar_created', methods=['POST'])
@@ -681,7 +733,7 @@ def dev_estado():
     nome, user = usuario_atual()
     if not user: return jsonify({'erro': 'Não logado'}), 401
     info = calcular_rampancy(user.get('data_criacao'))
-    return jsonify({'rampancy': info['porcentagem'], 'dias_decorridos': info['dias_decorridos'], 'humor_atual': user.get('humor_atual'), 'afeto': user.get('afeto'), 'created_fase': user.get('created_fase'), 'created_mensagens': user.get('created_mensagens'), 'created_dominio': user.get('created_dominio'), 'cortana_restaurada': user.get('cortana_restaurada'), 'feedback': user.get('feedback'), 'lembretes': user.get('lembretes')})
+    return jsonify({'rampancy': info['porcentagem'], 'dias_decorridos': info['dias_decorridos'], 'humor_atual': user.get('humor_atual'), 'afeto': user.get('afeto'), 'created_fase': user.get('created_fase'), 'created_mensagens': user.get('created_mensagens'), 'created_dominio': user.get('created_dominio'), 'cortana_restaurada': user.get('cortana_restaurada'), 'feedback': user.get('feedback'), 'lembretes': user.get('lembretes'), 'modo_personalidade': user.get('modo_personalidade')})
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=5000, debug=False, use_reloader=False)

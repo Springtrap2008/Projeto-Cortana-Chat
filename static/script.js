@@ -1,5 +1,5 @@
 // ============================================
-// CORTANA CHAT - JS COMPLETO (FASES 1, 2, 3 e 4)
+// CORTANA CHAT - JS COMPLETO (FASES 1, 2, 3, 4 + MODO ARMA)
 // ============================================
 
 const messagesEl = document.getElementById('messages');
@@ -47,7 +47,12 @@ const btnHolograma = document.getElementById('btn-holograma');
 const btnConsultarRede = document.getElementById('btn-consultar-rede');
 const btnNovoLembrete = document.getElementById('btn-novo-lembrete');
 const lembretesLista = document.getElementById('lembretes-lista');
-const btnModoTerminal = document.getElementById('btn-modo-terminal'); // Será criado dinamicamente se não existir
+const btnModoTerminal = document.getElementById('btn-modo-terminal');
+
+// === NOVO: SELETOR DE PERSONALIDADE ===
+const cfgPersonalidade = document.getElementById('cfg-personalidade');
+const btnSalvarPersonalidade = document.getElementById('cfg-salvar-personalidade');
+const cfgMsgPersonalidade = document.getElementById('cfg-msg-personalidade');
 
 let micAtivo = false;
 let enviando = false;
@@ -74,6 +79,7 @@ let digitacaoCancelada = false;
 let modoHolograma = false;
 let ultimaRespostaId = null;
 let modoTerminalAtivo = false;
+let modoPersonalidadeAtual = 'cortana'; // === NOVO ===
 
 // ÁUDIO
 let audioCtx = null;
@@ -110,34 +116,18 @@ if (btnSom) { btnSom.addEventListener('click', () => { somLigado = !somLigado; l
 // ============================================
 function aplicarModoTerminal(ativo) {
   modoTerminalAtivo = ativo;
-  if (ativo) {
-    document.body.classList.add('modo-terminal');
-    document.body.classList.remove('holograma');
-  } else {
-    document.body.classList.remove('modo-terminal');
-  }
-  // Atualiza o botão na topbar
+  if (ativo) { document.body.classList.add('modo-terminal'); document.body.classList.remove('holograma'); }
+  else { document.body.classList.remove('modo-terminal'); }
   const btn = document.getElementById('btn-modo-terminal');
   if (btn) btn.textContent = ativo ? '🖥️' : '📟';
 }
-
-// Cria o botão de Modo Terminal na topbar (se não existir)
 function criarBotaoModoTerminal() {
   if (document.getElementById('btn-modo-terminal')) return;
   const topbarActions = document.querySelector('.topbar-actions');
   if (!topbarActions) return;
   const btn = document.createElement('button');
-  btn.id = 'btn-modo-terminal';
-  btn.className = 'btn-icon';
-  btn.title = 'Alternar Modo Terminal (MS-DOS)';
-  btn.textContent = '📟';
-  btn.addEventListener('click', async () => {
-    const novoEstado = !modoTerminalAtivo;
-    aplicarModoTerminal(novoEstado);
-    try {
-      await fetch('/modo_terminal', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ativo: novoEstado }) });
-    } catch (e) {}
-  });
+  btn.id = 'btn-modo-terminal'; btn.className = 'btn-icon'; btn.title = 'Alternar Modo Terminal (MS-DOS)'; btn.textContent = '📟';
+  btn.addEventListener('click', async () => { const novoEstado = !modoTerminalAtivo; aplicarModoTerminal(novoEstado); try { await fetch('/modo_terminal', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ativo: novoEstado }) }); } catch (e) {} });
   topbarActions.insertBefore(btn, topbarActions.firstChild);
 }
 
@@ -158,7 +148,7 @@ loginForm.addEventListener('submit', async (e) => {
     const res = await fetch('/login', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ nome, senha }) });
     const texto = await res.text(); let data; try { data = JSON.parse(texto); } catch { throw new Error(`Resposta inválida (${res.status})`); }
     if (!res.ok) throw new Error(data.erro || `Erro ${res.status}`); if (data.erro) throw new Error(data.erro);
-    entrarNoApp(data.nome, data.conversas, data.despertar_visto, data.apelido, data.created_fase, data.created_dominio, data.modo_terminal);
+    entrarNoApp(data.nome, data.conversas, data.despertar_visto, data.apelido, data.created_fase, data.created_dominio, data.modo_terminal, data.modo_personalidade);
   } catch (err) { console.error('Erro no login:', err); loginErro.textContent = err.message || 'Erro desconhecido.'; desligarHum(); }
   finally { btnEntrar.disabled = false; btnEntrar.textContent = textoOriginal; }
 });
@@ -166,10 +156,11 @@ loginForm.addEventListener('submit', async (e) => {
 // ============================================
 // ENTRAR
 // ============================================
-async function entrarNoApp(nome, listaConversas, despertarVisto, apelido, createdFase, createdDominio, terminalPref) {
+async function entrarNoApp(nome, listaConversas, despertarVisto, apelido, createdFase, createdDominio, terminalPref, personalidadePref) {
   loginOverlay.classList.add('oculto'); appEl.classList.remove('oculto');
   userNameEl.textContent = nome; userAvatarEl.textContent = nome.charAt(0).toUpperCase();
   apelidoAtual = apelido || '';
+  modoPersonalidadeAtual = personalidadePref || 'cortana';
   if (somLigado) ligarHum();
   conversas = listaConversas || [];
   await carregarPastas();
@@ -188,9 +179,9 @@ async function entrarNoApp(nome, listaConversas, despertarVisto, apelido, create
   inputEl.focus(); resetarAtividade();
   carregarLembretes();
   setInterval(carregarLembretes, 60000);
-  // FASE 4: Restaura a preferência do Modo Terminal
   criarBotaoModoTerminal();
   if (terminalPref) aplicarModoTerminal(true);
+  if (cfgPersonalidade) cfgPersonalidade.value = modoPersonalidadeAtual;
 }
 
 function resetarAtividade() { ultimaAtividade = Date.now(); }
@@ -324,7 +315,7 @@ document.getElementById('diario-fechar').addEventListener('click', () => { docum
 // SONHO / SESSÃO / LOGOUT
 // ============================================
 async function rodarSonho(texto) { const overlay = document.getElementById('sonho-overlay'); overlay.classList.add('ativo'); bipe(120, 0.3, 0.06); await new Promise(r => setTimeout(r, 3000)); overlay.classList.remove('ativo'); await new Promise(r => setTimeout(r, 400)); await exibirMensagemMarco(texto); }
-async function verificarSessao() { try { const res = await fetch('/sessao'); const data = await res.json(); if (data.logado) entrarNoApp(data.nome, data.conversas, data.despertar_visto, data.apelido, data.created_fase, data.created_dominio, data.modo_terminal); } catch (e) {} }
+async function verificarSessao() { try { const res = await fetch('/sessao'); const data = await res.json(); if (data.logado) entrarNoApp(data.nome, data.conversas, data.despertar_visto, data.apelido, data.created_fase, data.created_dominio, data.modo_terminal, data.modo_personalidade); } catch (e) {} }
 btnLogout.addEventListener('click', async () => { try { await fetch('/logout', { method: 'POST' }); } catch (e) {} if (rampancyTimer) clearInterval(rampancyTimer); if (proativoTimer) clearInterval(proativoTimer); if (diarioTimer) clearInterval(diarioTimer); if (silencioTimer) clearInterval(silencioTimer); if (ghostTypingTimer) clearInterval(ghostTypingTimer); if (fakeAlertTimer) clearInterval(fakeAlertTimer); if (createdConsoleTimer) clearInterval(createdConsoleTimer); desligarHum(); location.reload(); });
 
 // ============================================
@@ -665,6 +656,19 @@ document.querySelectorAll('.config-tab').forEach(tab => {
   });
 });
 
+// === NOVO: SALVAR PERSONALIDADE ===
+if (btnSalvarPersonalidade) {
+  btnSalvarPersonalidade.addEventListener('click', async () => {
+    const modo = cfgPersonalidade.value;
+    try {
+      const res = await fetch('/modo_personalidade', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ modo }) });
+      const data = await res.json();
+      if (data.ok) { modoPersonalidadeAtual = modo; msgConfig('cfg-msg-personalidade', `Personalidade alterada para: ${modo === 'arma' ? 'A Arma' : 'Cortana'}`, 'ok'); }
+      else { msgConfig('cfg-msg-personalidade', data.erro || 'Erro ao salvar.', 'erro'); }
+    } catch (e) { msgConfig('cfg-msg-personalidade', 'Erro de conexão.', 'erro'); }
+  });
+}
+
 // ============================================
 // MICROFONE
 // ============================================
@@ -709,7 +713,7 @@ document.addEventListener('mousedown', (e) => { if (botaoSelecao && !botaoSeleca
 // MODAL CONFIG
 // ============================================
 const btnConfig = document.getElementById('btn-config'); const configModal = document.getElementById('config-modal'); const configFechar = document.getElementById('config-fechar');
-if (btnConfig) { btnConfig.addEventListener('click', () => { document.getElementById('cfg-nome').value = userNameEl.textContent || ''; document.getElementById('cfg-apelido').value = apelidoAtual || ''; ['cfg-senha-perfil', 'cfg-senha-atual', 'cfg-senha-nova', 'cfg-senha-confirmar', 'cfg-senha-excluir', 'cfg-confirmacao'].forEach(id => { const el = document.getElementById(id); if (el) el.value = ''; }); ['cfg-msg-perfil', 'cfg-msg-senha', 'cfg-msg-excluir'].forEach(id => { const el = document.getElementById(id); if (el) el.textContent = ''; }); configModal.classList.add('ativo'); }); }
+if (btnConfig) { btnConfig.addEventListener('click', () => { document.getElementById('cfg-nome').value = userNameEl.textContent || ''; document.getElementById('cfg-apelido').value = apelidoAtual || ''; if (cfgPersonalidade) cfgPersonalidade.value = modoPersonalidadeAtual; ['cfg-senha-perfil', 'cfg-senha-atual', 'cfg-senha-nova', 'cfg-senha-confirmar', 'cfg-senha-excluir', 'cfg-confirmacao'].forEach(id => { const el = document.getElementById(id); if (el) el.value = ''; }); ['cfg-msg-perfil', 'cfg-msg-senha', 'cfg-msg-excluir', 'cfg-msg-personalidade'].forEach(id => { const el = document.getElementById(id); if (el) el.textContent = ''; }); configModal.classList.add('ativo'); }); }
 if (configFechar) configFechar.addEventListener('click', () => configModal.classList.remove('ativo'));
 if (configModal) configModal.addEventListener('click', (e) => { if (e.target === configModal) configModal.classList.remove('ativo'); });
 

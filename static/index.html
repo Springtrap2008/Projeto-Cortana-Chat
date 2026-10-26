@@ -36,7 +36,6 @@
       <button id="btn-nova-pasta" class="btn-nova" style="margin: 0 8px 8px; padding: 6px; font-size: 11px;">+ Novo Setor</button>
 
       <div class="sidebar-section-title">Histórico</div>
-      <!-- FASE 3: Busca no histórico -->
       <div style="padding: 0 8px 8px;">
         <input type="text" id="busca-historico" placeholder="Buscar conversas..." style="width: 100%; padding: 6px 10px; background: var(--bg-input); border: 1px solid var(--border); border-radius: 6px; color: var(--texto); font-size: 12px; outline: none;">
       </div>
@@ -66,7 +65,6 @@
           </div>
         </div>
         <div class="topbar-actions">
-          <!-- FASE 3: Botão de Modo Holograma -->
           <button id="btn-holograma" class="btn-icon" title="Modo Holograma">☀️</button>
           <button id="btn-desconectar" class="btn-icon" title="Desconectar Sessão">🚪</button>
           <button id="btn-relatorio" class="btn-icon" title="Relatório de Missão">📋</button>
@@ -102,7 +100,6 @@
       <div id="input-area">
         <div class="input-wrapper">
           <textarea id="input" placeholder="Pergunte sobre a lore de Halo..." rows="1"></textarea>
-          <!-- FASE 3: Botão de Consultar Rede ONI -->
           <button id="btn-consultar-rede" class="btn-icon" title="Consultar Rede ONI (Wiki)" style="background: transparent; color: var(--cor-secundaria); font-size: 18px;">🌐</button>
           <button id="btn-enviar" class="btn-enviar" title="Enviar"><span>➤</span></button>
         </div>
@@ -135,7 +132,6 @@
           <button class="config-tab" data-tab="seguranca">🔒 Segurança</button>
           <button class="config-tab" data-tab="dados">📦 Dados</button>
           <button class="config-tab" data-tab="memoria">🧠 Memória</button>
-          <!-- FASE 3: Aba de Lembretes -->
           <button class="config-tab" data-tab="lembretes">⏰ Lembretes</button>
           <button class="config-tab perigo" data-tab="perigo">⚠ Zona de Perigo</button>
         </nav>
@@ -143,6 +139,20 @@
           <div class="config-painel ativo" data-painel="perfil">
             <h3>Perfil</h3>
             <p class="config-desc">Altere como a Cortana te chama e o nome de acesso.</p>
+            
+            <!-- === NOVO: SELETOR DE PERSONALIDADE === -->
+            <label class="config-label">
+              <span>Personalidade da IA</span>
+              <select id="cfg-personalidade" style="padding: 10px 14px; background: var(--bg-input); border: 1px solid var(--border); border-radius: 10px; color: var(--texto); font-size: 14px; outline: none;">
+                <option value="cortana">Cortana (Clássica)</option>
+                <option value="arma">A Arma (Halo Infinite)</option>
+              </select>
+            </label>
+            <button id="cfg-salvar-personalidade" class="config-btn" style="margin-bottom: 14px;">Salvar Personalidade</button>
+            <div class="config-msg" id="cfg-msg-personalidade"></div>
+            <hr class="config-hr">
+            <!-- FIM DO NOVO -->
+
             <label class="config-label"><span>Nome de usuário (login)</span><input type="text" id="cfg-nome" placeholder="Spartan117"></label>
             <label class="config-label"><span>Apelido (como a Cortana te chama)</span><input type="text" id="cfg-apelido" placeholder="Spartan" maxlength="30"></label>
             <label class="config-label"><span>Senha atual (para confirmar)</span><input type="password" id="cfg-senha-perfil" placeholder="••••••••"></label>
@@ -184,7 +194,6 @@
             <div id="memorias-lista"><p class="config-desc">Nenhuma memória registrada ainda.</p></div>
           </div>
 
-          <!-- FASE 3: Painel de Lembretes -->
           <div class="config-painel" data-painel="lembretes">
             <h3>Lembretes</h3>
             <p class="config-desc">A Cortana te avisa quando o prazo chegar.</p>
