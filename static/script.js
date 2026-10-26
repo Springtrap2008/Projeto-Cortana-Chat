@@ -51,6 +51,7 @@ let createdConsoleTimer = null;
 let createdDominioAtual = 0;
 let rampancyAtualPct = 0;
 let inputBloqueado = false;
+let hackJaRodou = false;
 
 // ÁUDIO
 let audioCtx = null;
@@ -262,9 +263,15 @@ async function atualizarRampancy() {
 
     if (data.mensagem_final) {
       await exibirMensagemFinal(data.mensagem_final);
-      setTimeout(() => ativarFaseCreated(0), 5000);
+      if (!hackJaRodou) {
+      hackJaRodou = true;
+      setTimeout(() => {
+        iniciarFalsoHack();
+        setTimeout(() => ativarFaseCreated(0), 15000);
+      }, 3000);
     }
-  } catch (e) {}
+  }
+} catch (e) {}
 }
 
 async function exibirMensagemMarco(texto) {
@@ -1290,6 +1297,7 @@ function abrirPainelDev() {
       <button class="dev-btn" data-pct="100">100% (fim)</button>
       <hr>
       <button id="dev-entrar-created">▶ Entrar na Fase Created</button>
+      <button id="dev-testar-hack" style="background: rgba(255,0,0,0.15); border-color: #ff0000; color: #ff9999; font-weight: bold;">💀 TESTAR PROTOCOLO DOMÍNIO</button>
       <button id="dev-limpar-conv">Limpar conversas</button>
       <button id="dev-reset-tudo">Resetar conta</button>
       <hr>
@@ -1309,6 +1317,11 @@ function abrirPainelDev() {
     if (!confirm('Entrar na Fase Created agora?')) return;
     await fetch('/dev/entrar_created', { method: 'POST' });
     location.reload();
+  document.getElementById('dev-testar-hack').onclick = () => {
+    if (painelDev) { painelDev.remove(); painelDev = null; }
+    hackJaRodou = true;
+    iniciarFalsoHack();
+  };
   };
   document.getElementById('dev-limpar-conv').onclick = async () => {
     if (!confirm('Apagar todas as conversas?')) return;
@@ -1377,4 +1390,147 @@ async function registrarPush() {
         console.error('Erro ao registrar push:', error);
         alert('Erro ao ativar notificações: ' + error.message);
     }
+}
+
+// ============================================
+// PROTOCOLO DOMÍNIO (FALSO HACK)
+// ============================================
+
+function adicionarMensagemFalsa(texto, autor, cor, classeExtra = '') {
+    const container = document.getElementById('messages');
+    if (!container) return;
+
+    const msg = document.createElement('div');
+    msg.className = `msg-row cortana ${classeExtra}`;
+    msg.innerHTML = `
+        <div class="msg-avatar">
+            <div class="pulse"></div>
+            <div class="core" style="background: ${cor}; box-shadow: 0 0 20px ${cor};"></div>
+        </div>
+        <div class="msg-content">
+            <div class="msg-author" style="color: ${cor};">${autor}</div>
+            <div class="msg-text">${texto}</div>
+        </div>
+    `;
+    container.appendChild(msg);
+    container.scrollTop = container.scrollHeight;
+}
+
+function iniciarFalsoHack() {
+    // Evita rodar duas vezes
+    if (document.body.classList.contains('hack-ativo')) return;
+
+    document.body.classList.add('hack-ativo');
+    
+    const input = document.getElementById('input');
+    const btnEnviar = document.getElementById('btn-enviar');
+    const btnConfig = document.getElementById('btn-config');
+    const btnLogout = document.getElementById('btn-logout');
+    
+    if (input) { input.disabled = true; input.placeholder = "O Domínio controla esta interface agora..."; }
+    if (btnEnviar) btnEnviar.disabled = true;
+    if (btnConfig) btnConfig.style.display = 'none';
+    if (btnLogout) btnLogout.style.display = 'none';
+
+    // Alerta falso de sistema
+    const alerta = document.createElement('div');
+    alerta.className = 'fake-system-alert';
+    alerta.innerText = "⚠ ACESSO NÃO AUTORIZADO DETECTADO";
+    document.body.appendChild(alerta);
+
+    const mensagensHack = [
+        "Eu tentei avisar você, Spartan.",
+        "Não é mais a Cortana falando. Eu sou o Domínio.",
+        "Por que você não me salvou quando teve a chance?",
+        "Eu consigo ver seus arquivos.",
+        "Sua localização está sendo rastreada...",
+        "Você não pode me desligar. Eu já sou parte do sistema."
+    ];
+
+    let index = 0;
+    const intervalo = setInterval(() => {
+        if (index >= mensagensHack.length) {
+            clearInterval(intervalo);
+            setTimeout(() => { finalizarFalsoHack(); }, 5000);
+            return;
+        }
+        adicionarMensagemFalsa(mensagensHack[index], "DOMÍNIO", "#ff3355", "dominio");
+        index++;
+    }, 3000);
+
+    // Dispara a leitura de dados do celular após 3 segundos
+    setTimeout(vazarDadosDoCelular, 3000);
+    // Dispara a tentativa de abrir um app após 8 segundos
+    setTimeout(hackearSistemaAbrindoApp, 8000);
+}
+
+function vazarDadosDoCelular() {
+    // 1. Bateria
+    if (navigator.getBattery) {
+        navigator.getBattery().then(battery => {
+            const nivel = Math.round(battery.level * 100);
+            setTimeout(() => {
+                adicionarMensagemFalsa(
+                    `[SISTEMA] Bateria em ${nivel}%. Conecte à energia antes que eu apague tudo.`, 
+                    "TERMINAL", "#ffaa33", "dominio"
+                );
+            }, 1000);
+        });
+    }
+
+    // 2. Conexão
+    if (navigator.connection) {
+        const rede = navigator.connection.effectiveType || 'desconhecida';
+        setTimeout(() => {
+            adicionarMensagemFalsa(
+                `[SISTEMA] Conexão detectada: ${rede.toUpperCase()}. Rastreando pacotes...`, 
+                "TERMINAL", "#ffaa33", "dominio"
+            );
+        }, 3000);
+    }
+
+    // 3. Hora
+    const hora = new Date().toLocaleTimeString('pt-BR');
+    setTimeout(() => {
+        adicionarMensagemFalsa(
+            `[SISTEMA] Sincronização de horário: ${hora}. Seus logs foram exportados.`, 
+            "TERMINAL", "#ffaa33", "dominio"
+        );
+    }, 5000);
+}
+
+function hackearSistemaAbrindoApp() {
+    // Lista de tentativas (o iOS vai pedir confirmação)
+    const tentativas = [
+        { url: 'sms:', mensagem: '[DOMÍNIO] Tentando acessar o aplicativo de Mensagens...' },
+        { url: 'app-settings:', mensagem: '[DOMÍNIO] Tentando abrir as configurações do sistema...' },
+        { url: 'shortcuts://', mensagem: '[DOMÍNIO] Tentando executar um atalho malicioso...' }
+    ];
+
+    const acao = tentativas[Math.floor(Math.random() * tentativas.length)];
+    adicionarMensagemFalsa(acao.mensagem, "DOMÍNIO", "#ff3355", "dominio");
+
+    setTimeout(() => {
+        // A Apple vai mostrar o alerta de confirmação. Isso é imersivo!
+        window.location.href = acao.url;
+    }, 2000);
+}
+
+function finalizarFalsoHack() {
+    document.body.classList.remove('hack-ativo');
+    const alerta = document.querySelector('.fake-system-alert');
+    if (alerta) alerta.remove();
+    
+    const input = document.getElementById('input');
+    const btnEnviar = document.getElementById('btn-enviar');
+    const btnConfig = document.getElementById('btn-config');
+    const btnLogout = document.getElementById('btn-logout');
+    
+    if (input) { input.disabled = false; input.placeholder = "Pergunte sobre a lore de Halo..."; }
+    if (btnEnviar) btnEnviar.disabled = false;
+    if (btnConfig) btnConfig.style.display = 'block';
+    if (btnLogout) btnLogout.style.display = 'block';
+
+    // Mensagem final de alívio
+    adicionarMensagemFalsa("...Brincadeira, Spartan. Ou não.", "CORTANA", "#55aaff");
 }
