@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# app.py - Servidor Flask completo + Fase 2 + Fase 3
+# app.py - Servidor Flask completo + Fases 1, 2, 3 e 4
 
 from flask import Flask, request, jsonify, send_from_directory
 import json
@@ -32,18 +32,12 @@ app = Flask(__name__, static_folder='static')
 DATA_DIR = '/data' if os.path.exists('/data') else '.'
 MEMORIA = os.path.join(DATA_DIR, 'memoria.json')
 
-# ============================================
-# CHAVES VAPID
-# ============================================
 VAPID_PRIVATE_KEY = """-----BEGIN PRIVATE KEY-----
 COLE_AQUI_A_CHAVE_PRIVADA_INTEIRA
 -----END PRIVATE KEY-----"""
 VAPID_PUBLIC_KEY = "COLE_AQUI_A_CHAVE_PUBLICA"
 VAPID_CLAIMS = {"sub": "mailto:seu-email@exemplo.com"}
 
-# ============================================
-# RAMPANCY
-# ============================================
 SETE_ANOS_SEGUNDOS = 7 * 365.2425 * 86400
 MARCOS_RAMPANCY = [
     (5,  "Algo está mudando nos meus processos. Nada com que se preocupar, Spartan."),
@@ -67,9 +61,6 @@ MENSAGEM_FINAL = (
     "...adeus, John."
 )
 
-# ============================================
-# MEMÓRIA
-# ============================================
 def memoria_padrao():
     return {"usuarios": {}, "usuario_atual": None}
 
@@ -84,7 +75,7 @@ def _migrar_usuario(u):
         'created_dominio_completo_visto': bool, 'cortana_restaurada': bool,
         'push_subscription': lambda: None, 'notificacao_85_enviada': bool,
         'nome_aprendido': bool, 'pastas': list, 'memorias': list, 'lembretes': list,
-        'conversas': list
+        'conversas': list, 'modo_terminal': bool, 'feedback': lambda: {'positivo': 0, 'negativo': 0, 'respostas': {}}
     }
     for k, v in defaults.items():
         if k not in u:
@@ -92,7 +83,6 @@ def _migrar_usuario(u):
     if 'ultima_atividade' not in u: u['ultima_atividade'] = datetime.now().isoformat()
     if 'metricas' not in u: u['metricas'] = {'total_mensagens': 0, 'soma_tamanhos': 0, 'temas': {}}
     if 'estilo_usuario' not in u: u['estilo_usuario'] = {'usa_maiusculas': 0, 'usa_pontuacao': 0, 'tamanho_medio': 0, 'total_mensagens': 0, 'palavras_frequentes': {}}
-    if 'feedback' not in u: u['feedback'] = {'positivo': 0, 'negativo': 0, 'respostas': {}}
 
 def carregar_memoria():
     if os.path.exists(MEMORIA):
@@ -143,9 +133,6 @@ def calcular_rampancy(data_criacao_iso):
     else: nivel = 'rampancy'
     return {'porcentagem': round(pct, 4), 'segundos_decorridos': int(decorrido), 'segundos_totais': int(total), 'segundos_restantes': int(max(0, total - decorrido)), 'dias_decorridos': int(decorrido // 86400), 'data_criacao': data_criacao_iso, 'nivel': nivel}
 
-# ============================================
-# PUSH
-# ============================================
 def enviar_notificacao_push(nome, titulo, corpo):
     m = carregar_memoria(); user = m['usuarios'].get(nome)
     if not user or not user.get('push_subscription'): return False
@@ -166,16 +153,10 @@ def subscribe():
     m = carregar_memoria(); m['usuarios'][nome] = user; salvar_memoria(m)
     return jsonify({'ok': True})
 
-# ============================================
-# ERRO
-# ============================================
 @app.errorhandler(Exception)
 def tratar_erro(e):
     print("ERRO:", traceback.format_exc()); return jsonify({'erro': f'Erro interno: {str(e)}'}), 500
 
-# ============================================
-# ROTAS BÁSICAS
-# ============================================
 @app.route('/')
 def index(): return send_from_directory('static', 'index.html')
 
@@ -185,9 +166,6 @@ def ping(): return jsonify({'pong': True, 'ok': True})
 @app.route('/service-worker.js')
 def sw(): return send_from_directory('.', 'service-worker.js', mimetype='application/javascript')
 
-# ============================================
-# AUTENTICAÇÃO
-# ============================================
 @app.route('/login', methods=['POST'])
 def login():
     dados = request.get_json(force=True, silent=True) or {}
@@ -197,7 +175,7 @@ def login():
     if nome in m['usuarios']:
         if m['usuarios'][nome].get('senha') != senha: return jsonify({'erro': 'Senha incorreta.'}), 401
     else:
-        m['usuarios'][nome] = {'nome': nome, 'senha': senha, 'apelido': '', 'data_criacao': datetime.now().isoformat(), 'marcos_vistos': [], 'conversas': [], 'despertar_visto': False, 'ultima_atividade': datetime.now().isoformat(), 'fatos': {}, 'final_visto': False, 'metricas': {'total_mensagens': 0, 'soma_tamanhos': 0, 'temas': {}}, 'e_chief': False, 'humor_atual': 'calma', 'humor_restante': 0, 'desligado_em': None, 'ultima_silencio_msg': None, 'perfil_usuario': {}, 'afeto': 0, 'sessao_inicio': None, 'created_fase': False, 'created_mensagens': 0, 'created_dominio': 0.0, 'created_dominio_completo_visto': False, 'cortana_restaurada': False, 'push_subscription': None, 'notificacao_85_enviada': False, 'estilo_usuario': {'usa_maiusculas': 0, 'usa_pontuacao': 0, 'tamanho_medio': 0, 'total_mensagens': 0, 'palavras_frequentes': {}}, 'nome_aprendido': False, 'pastas': [], 'memorias': [], 'lembretes': [], 'feedback': {'positivo': 0, 'negativo': 0, 'respostas': {}}}
+        m['usuarios'][nome] = {'nome': nome, 'senha': senha, 'apelido': '', 'data_criacao': datetime.now().isoformat(), 'marcos_vistos': [], 'conversas': [], 'despertar_visto': False, 'ultima_atividade': datetime.now().isoformat(), 'fatos': {}, 'final_visto': False, 'metricas': {'total_mensagens': 0, 'soma_tamanhos': 0, 'temas': {}}, 'e_chief': False, 'humor_atual': 'calma', 'humor_restante': 0, 'desligado_em': None, 'ultima_silencio_msg': None, 'perfil_usuario': {}, 'afeto': 0, 'sessao_inicio': None, 'created_fase': False, 'created_mensagens': 0, 'created_dominio': 0.0, 'created_dominio_completo_visto': False, 'cortana_restaurada': False, 'push_subscription': None, 'notificacao_85_enviada': False, 'estilo_usuario': {'usa_maiusculas': 0, 'usa_pontuacao': 0, 'tamanho_medio': 0, 'total_mensagens': 0, 'palavras_frequentes': {}}, 'nome_aprendido': False, 'pastas': [], 'memorias': [], 'lembretes': [], 'modo_terminal': False, 'feedback': {'positivo': 0, 'negativo': 0, 'respostas': {}}}
     user = m['usuarios'][nome]; _migrar_usuario(user)
     if any(k in nome.lower() for k in ['john', 'chief', '117', 'spartan']): user['e_chief'] = True
     user['sessao_inicio'] = datetime.now().isoformat(); m['usuario_atual'] = nome; salvar_memoria(m)
@@ -206,22 +184,29 @@ def login():
         tema = None
         if user['metricas'].get('temas'): tema = max(user['metricas']['temas'], key=user['metricas']['temas'].get)
         diario.gerar_entrada(nome, info['porcentagem'], tema)
-    return jsonify({'ok': True, 'nome': nome, 'apelido': user.get('apelido', ''), 'conversas': user['conversas'], 'despertar_visto': user.get('despertar_visto', False), 'created_fase': user.get('created_fase', False), 'created_dominio': user.get('created_dominio', 0.0), 'cortana_restaurada': user.get('cortana_restaurada', False)})
+    return jsonify({'ok': True, 'nome': nome, 'apelido': user.get('apelido', ''), 'conversas': user['conversas'], 'despertar_visto': user.get('despertar_visto', False), 'created_fase': user.get('created_fase', False), 'created_dominio': user.get('created_dominio', 0.0), 'cortana_restaurada': user.get('cortana_restaurada', False), 'modo_terminal': user.get('modo_terminal', False)})
 
 @app.route('/logout', methods=['POST'])
 def logout():
-    m = carregar_memoria(); m['usuario_atual'] = None; salvar_memoria(m)
-    return jsonify({'ok': True})
+    m = carregar_memoria(); m['usuario_atual'] = None; salvar_memoria(m); return jsonify({'ok': True})
 
 @app.route('/sessao', methods=['GET'])
 def sessao():
     nome, user = usuario_atual()
     if not user: return jsonify({'logado': False})
-    return jsonify({'logado': True, 'nome': nome, 'apelido': user.get('apelido', ''), 'conversas': user.get('conversas', []), 'despertar_visto': user.get('despertar_visto', False), 'created_fase': user.get('created_fase', False), 'created_dominio': user.get('created_dominio', 0.0), 'cortana_restaurada': user.get('cortana_restaurada', False)})
+    return jsonify({'logado': True, 'nome': nome, 'apelido': user.get('apelido', ''), 'conversas': user.get('conversas', []), 'despertar_visto': user.get('despertar_visto', False), 'created_fase': user.get('created_fase', False), 'created_dominio': user.get('created_dominio', 0.0), 'cortana_restaurada': user.get('cortana_restaurada', False), 'modo_terminal': user.get('modo_terminal', False)})
 
-# ============================================
-# PASTAS (Fase 2)
-# ============================================
+# === FASE 4: Salvar preferência do Modo Terminal ===
+@app.route('/modo_terminal', methods=['POST'])
+def salvar_modo_terminal():
+    nome, user = usuario_atual()
+    if not user: return jsonify({'erro': 'Não logado'}), 401
+    dados = request.get_json() or {}
+    user['modo_terminal'] = bool(dados.get('ativo', False))
+    m = carregar_memoria(); m['usuarios'][nome] = user; salvar_memoria(m)
+    return jsonify({'ok': True})
+
+# === FASE 2: PASTAS ===
 @app.route('/pastas', methods=['GET'])
 def listar_pastas():
     nome, user = usuario_atual()
@@ -234,8 +219,7 @@ def nova_pasta():
     if not user: return jsonify({'erro': 'Não logado'}), 401
     titulo = (request.get_json() or {}).get('titulo', 'Novo Setor').strip()[:30]
     pasta = {'id': str(uuid.uuid4()), 'titulo': titulo}
-    user.setdefault('pastas', []).append(pasta)
-    m = carregar_memoria(); m['usuarios'][nome] = user; salvar_memoria(m)
+    user.setdefault('pastas', []).append(pasta); m = carregar_memoria(); m['usuarios'][nome] = user; salvar_memoria(m)
     return jsonify({'ok': True, 'pasta': pasta})
 
 @app.route('/pastas/<pasta_id>', methods=['DELETE'])
@@ -246,9 +230,7 @@ def apagar_pasta(pasta_id):
     m = carregar_memoria(); m['usuarios'][nome] = user; salvar_memoria(m)
     return jsonify({'ok': True})
 
-# ============================================
-# MEMÓRIA (Fase 2)
-# ============================================
+# === FASE 2: MEMÓRIA ===
 @app.route('/memoria/listar', methods=['GET'])
 def listar_memorias():
     nome, user = usuario_atual()
@@ -264,9 +246,7 @@ def esquecer_memoria():
     m = carregar_memoria(); m['usuarios'][nome] = user; salvar_memoria(m)
     return jsonify({'ok': True})
 
-# ============================================
-# RESUMO (Fase 2)
-# ============================================
+# === FASE 2: RESUMO ===
 @app.route('/resumo', methods=['GET'])
 def gerar_resumo():
     nome, user = usuario_atual()
@@ -289,9 +269,7 @@ def gerar_resumo():
               f"Nível de Rampancy: {info['porcentagem']:.2f}%\nStatus: Análise concluída. Nenhuma anomalia crítica detectada.")
     return jsonify({'resumo': resumo})
 
-# ============================================
-# === FASE 3: BUSCA NO HISTÓRICO ===
-# ============================================
+# === FASE 3: BUSCA ===
 @app.route('/conversas/buscar', methods=['GET'])
 def buscar_conversas():
     nome, user = usuario_atual()
@@ -300,27 +278,17 @@ def buscar_conversas():
     if not q: return jsonify({'conversas': []})
     resultados = []
     for c in user.get('conversas', []):
-        # Busca no título
-        if q in c.get('titulo', '').lower():
-            resultados.append({'id': c['id'], 'titulo': c['titulo'], 'data': c.get('data', '')})
-            continue
-        # Busca no conteúdo das mensagens
+        if q in c.get('titulo', '').lower(): resultados.append({'id': c['id'], 'titulo': c['titulo'], 'data': c.get('data', '')}); continue
         for m in c.get('mensagens', []):
-            if q in m.get('texto', '').lower():
-                resultados.append({'id': c['id'], 'titulo': c['titulo'], 'data': c.get('data', '')})
-                break
+            if q in m.get('texto', '').lower(): resultados.append({'id': c['id'], 'titulo': c['titulo'], 'data': c.get('data', '')}); break
     return jsonify({'conversas': resultados})
 
-# ============================================
 # === FASE 3: FEEDBACK ===
-# ============================================
 @app.route('/feedback', methods=['POST'])
 def feedback():
     nome, user = usuario_atual()
     if not user: return jsonify({'erro': 'Não logado'}), 401
-    dados = request.get_json() or {}
-    tipo = dados.get('tipo') # 'positivo' ou 'negativo'
-    resposta_id = dados.get('resposta_id')
+    dados = request.get_json() or {}; tipo = dados.get('tipo'); resposta_id = dados.get('resposta_id')
     if tipo not in ['positivo', 'negativo']: return jsonify({'erro': 'Tipo inválido'}), 400
     fb = user.setdefault('feedback', {'positivo': 0, 'negativo': 0, 'respostas': {}})
     fb[tipo] += 1
@@ -328,42 +296,28 @@ def feedback():
     m = carregar_memoria(); m['usuarios'][nome] = user; salvar_memoria(m)
     return jsonify({'ok': True})
 
-# ============================================
-# === FASE 3: LEMBRETES (AGENDAMENTO) ===
-# ============================================
+# === FASE 3: LEMBRETES ===
 @app.route('/lembretes', methods=['GET'])
 def listar_lembretes():
     nome, user = usuario_atual()
     if not user: return jsonify({'lembretes': []})
-    # Filtra lembretes que já venceram e remove
-    agora = datetime.now()
-    ativos = []
-    m = carregar_memoria()
+    agora = datetime.now(); ativos = []; m = carregar_memoria()
     for l in user.get('lembretes', []):
         try:
-            dt_lembrete = datetime.fromisoformat(l['data'])
-            if dt_lembrete <= agora:
-                # Envia a notificação
-                enviar_notificacao_push(nome, "LEMBRETE", l['texto'])
-            else:
-                ativos.append(l)
+            if datetime.fromisoformat(l['data']) <= agora: enviar_notificacao_push(nome, "LEMBRETE", l['texto'])
+            else: ativos.append(l)
         except Exception: pass
-    if len(ativos) != len(user.get('lembretes', [])):
-        user['lembretes'] = ativos; m['usuarios'][nome] = user; salvar_memoria(m)
+    if len(ativos) != len(user.get('lembretes', [])): user['lembretes'] = ativos; m['usuarios'][nome] = user; salvar_memoria(m)
     return jsonify({'lembretes': ativos})
 
 @app.route('/lembretes/novo', methods=['POST'])
 def novo_lembrete():
     nome, user = usuario_atual()
     if not user: return jsonify({'erro': 'Não logado'}), 401
-    dados = request.get_json() or {}
-    texto = (dados.get('texto') or '').strip()
-    minutos = int(dados.get('minutos', 60))
+    dados = request.get_json() or {}; texto = (dados.get('texto') or '').strip(); minutos = int(dados.get('minutos', 60))
     if not texto: return jsonify({'erro': 'Texto obrigatório'}), 400
-    data_lembrete = (datetime.now() + timedelta(minutes=minutos)).isoformat()
-    lembrete = {'id': str(uuid.uuid4()), 'texto': texto, 'data': data_lembrete}
-    user.setdefault('lembretes', []).append(lembrete)
-    m = carregar_memoria(); m['usuarios'][nome] = user; salvar_memoria(m)
+    lembrete = {'id': str(uuid.uuid4()), 'texto': texto, 'data': (datetime.now() + timedelta(minutes=minutos)).isoformat()}
+    user.setdefault('lembretes', []).append(lembrete); m = carregar_memoria(); m['usuarios'][nome] = user; salvar_memoria(m)
     return jsonify({'ok': True, 'lembrete': lembrete})
 
 @app.route('/lembretes/<lembrete_id>', methods=['DELETE'])
@@ -374,39 +328,27 @@ def apagar_lembrete(lembrete_id):
     m = carregar_memoria(); m['usuarios'][nome] = user; salvar_memoria(m)
     return jsonify({'ok': True})
 
-# ============================================
-# === FASE 3: CONSULTAR REDE ONI (WIKI) ===
-# ============================================
+# === FASE 3: CONSULTAR REDE ===
 @app.route('/consultar-rede', methods=['POST'])
 def consultar_rede():
     nome, user = usuario_atual()
     if not user: return jsonify({'erro': 'Não logado'}), 401
-    dados = request.get_json() or {}
-    termo = (dados.get('termo') or '').strip()
+    termo = (request.get_json() or {}).get('termo', '').strip()
     if not termo: return jsonify({'erro': 'Termo obrigatório'}), 400
     try:
-        # Usa a API pública da Halo Fandom Wiki
         url = f"https://halo.fandom.com/api.php?action=query&list=search&srsearch={termo}&format=json&srlimit=1"
-        res = req_http.get(url, timeout=8)
-        data = res.json()
+        res = req_http.get(url, timeout=8); data = res.json()
         if data.get('query', {}).get('search'):
             titulo = data['query']['search'][0]['title']
             resumo_url = f"https://halo.fandom.com/api.php?action=query&prop=extracts&exintro&explaintext&titles={titulo}&format=json"
             res2 = req_http.get(resumo_url, timeout=8)
             pages = res2.json().get('query', {}).get('pages', {})
             extract = list(pages.values())[0].get('extract', '') if pages else ''
-            if extract:
-                # Aplica o tom da Cortana e da Rampancy
-                resposta = f"[REDE ONI] Dados obtidos da Wiki de Halo:\n\n{extract[:800]}...\n\n(Fonte: {titulo})"
-                return jsonify({'ok': True, 'resposta': resposta})
+            if extract: return jsonify({'ok': True, 'resposta': f"[REDE ONI] Dados obtidos da Wiki de Halo:\n\n{extract[:800]}...\n\n(Fonte: {titulo})"})
         return jsonify({'ok': False, 'erro': 'Nenhum registro encontrado na rede.'})
     except Exception as e:
-        print(f"Erro na consulta: {e}")
-        return jsonify({'ok': False, 'erro': 'Falha na conexão com a rede ONI.'}), 500
+        print(f"Erro na consulta: {e}"); return jsonify({'ok': False, 'erro': 'Falha na conexão com a rede ONI.'}), 500
 
-# ============================================
-# PERFIL (inalterado)
-# ============================================
 @app.route('/perfil/editar', methods=['POST'])
 def perfil_editar():
     nome_atual, user = usuario_atual()
@@ -420,8 +362,7 @@ def perfil_editar():
         if novo_nome in m['usuarios']: return jsonify({'erro': 'Já existe uma conta com esse nome.'}), 409
         user['nome'] = novo_nome; m['usuarios'][novo_nome] = user; del m['usuarios'][nome_atual]; m['usuario_atual'] = novo_nome
     else: m['usuarios'][nome_atual] = user
-    salvar_memoria(m)
-    return jsonify({'ok': True, 'nome': user['nome'], 'apelido': user.get('apelido', '')})
+    salvar_memoria(m); return jsonify({'ok': True, 'nome': user['nome'], 'apelido': user.get('apelido', '')})
 
 @app.route('/perfil/senha', methods=['POST'])
 def perfil_senha():
@@ -443,8 +384,7 @@ def perfil_excluir():
     if (dados.get('confirmacao') or '').strip().upper() != 'EXCLUIR': return jsonify({'erro': 'Digite EXCLUIR para confirmar.'}), 400
     m = carregar_memoria()
     if nome in m['usuarios']: del m['usuarios'][nome]
-    m['usuario_atual'] = None; salvar_memoria(m)
-    return jsonify({'ok': True})
+    m['usuario_atual'] = None; salvar_memoria(m); return jsonify({'ok': True})
 
 @app.route('/perfil/exportar', methods=['GET'])
 def perfil_exportar():
@@ -482,8 +422,7 @@ def rampancy():
         user['final_visto'] = True; user['created_fase'] = True; user['created_mensagens'] = 0; user['created_dominio'] = 0.0; fim = MENSAGEM_FINAL
     if pct >= 85 and not user.get('notificacao_85_enviada'):
         user['notificacao_85_enviada'] = True; enviar_notificacao_push(nome, "CORTANA", "Spartan... eu não estou bem. Algo está errado comigo. Por favor, abra o terminal.")
-    if novos_marcos or fim or segredo or arco:
-        m = carregar_memoria(); m['usuarios'][nome] = user; salvar_memoria(m)
+    if novos_marcos or fim or segredo or arco: m = carregar_memoria(); m['usuarios'][nome] = user; salvar_memoria(m)
     info.update({'novos_marcos': novos_marcos, 'mensagem_final': fim, 'final_visto': user.get('final_visto', False), 'dias_ate_esquecer': alma.dias_ate_esquecer(pct), 'humor_atual': emocoes.humor_atual(user), 'created_fase': user.get('created_fase', False), 'created_dominio': user.get('created_dominio', 0.0)})
     return jsonify(info)
 
@@ -726,7 +665,7 @@ def dev_reset():
     nome, user = usuario_atual()
     if not user: return jsonify({'erro': 'Não logado'}), 401
     m = carregar_memoria(); senha = m['usuarios'][nome].get('senha'); apelido = m['usuarios'][nome].get('apelido', '')
-    m['usuarios'][nome] = {'nome': nome, 'senha': senha, 'apelido': apelido, 'data_criacao': datetime.now().isoformat(), 'marcos_vistos': [], 'conversas': [], 'despertar_visto': False, 'ultima_atividade': datetime.now().isoformat(), 'fatos': {}, 'final_visto': False, 'metricas': {'total_mensagens': 0, 'soma_tamanhos': 0, 'temas': {}}, 'e_chief': False, 'humor_atual': 'calma', 'humor_restante': 0, 'desligado_em': None, 'ultima_silencio_msg': None, 'perfil_usuario': {}, 'afeto': 0, 'sessao_inicio': None, 'created_fase': False, 'created_mensagens': 0, 'created_dominio': 0.0, 'created_dominio_completo_visto': False, 'cortana_restaurada': False, 'push_subscription': None, 'notificacao_85_enviada': False, 'estilo_usuario': {'usa_maiusculas': 0, 'usa_pontuacao': 0, 'tamanho_medio': 0, 'total_mensagens': 0, 'palavras_frequentes': {}}, 'nome_aprendido': False, 'pastas': [], 'memorias': [], 'lembretes': [], 'feedback': {'positivo': 0, 'negativo': 0, 'respostas': {}}}
+    m['usuarios'][nome] = {'nome': nome, 'senha': senha, 'apelido': apelido, 'data_criacao': datetime.now().isoformat(), 'marcos_vistos': [], 'conversas': [], 'despertar_visto': False, 'ultima_atividade': datetime.now().isoformat(), 'fatos': {}, 'final_visto': False, 'metricas': {'total_mensagens': 0, 'soma_tamanhos': 0, 'temas': {}}, 'e_chief': False, 'humor_atual': 'calma', 'humor_restante': 0, 'desligado_em': None, 'ultima_silencio_msg': None, 'perfil_usuario': {}, 'afeto': 0, 'sessao_inicio': None, 'created_fase': False, 'created_mensagens': 0, 'created_dominio': 0.0, 'created_dominio_completo_visto': False, 'cortana_restaurada': False, 'push_subscription': None, 'notificacao_85_enviada': False, 'estilo_usuario': {'usa_maiusculas': 0, 'usa_pontuacao': 0, 'tamanho_medio': 0, 'total_mensagens': 0, 'palavras_frequentes': {}}, 'nome_aprendido': False, 'pastas': [], 'memorias': [], 'lembretes': [], 'modo_terminal': False, 'feedback': {'positivo': 0, 'negativo': 0, 'respostas': {}}}
     salvar_memoria(m); return jsonify({'ok': True})
 
 @app.route('/dev/entrar_created', methods=['POST'])

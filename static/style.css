@@ -1216,3 +1216,265 @@ body.holograma .input-wrapper { background: #ffffff; border-color: #b0ccee; }
     }
 }
 
+/* ============================================
+   FASE 4: MODO TERMINAL (MS-DOS / UNSC)
+   ============================================ */
+
+/* Força a fonte monoespaçada em todo o app */
+body.modo-terminal,
+body.modo-terminal * {
+    font-family: 'Consolas', 'Monaco', 'Courier New', monospace !important;
+}
+
+body.modo-terminal {
+    --bg-app: #000000;
+    --bg-sidebar: #050505;
+    --bg-main: #000000;
+    --bg-input: #0a0a0a;
+    --bg-hover: #111111;
+    --bg-msg-user: #0a1a0a;
+    --border: #003300;
+    --texto: #33ff33;
+    --texto-fraco: #009900;
+    --texto-forte: #66ff66;
+    --cor-primaria: #33ff33;
+    --cor-secundaria: #33ff33;
+    --cor-alerta: #33ff33;
+}
+
+/* Remove o avatar e o "pulse" (visual mais seco) */
+body.modo-terminal .msg-avatar,
+body.modo-terminal .avatar-mini,
+body.modo-terminal .login-avatar {
+    display: none !important;
+}
+body.modo-terminal .msg-row {
+    gap: 0;
+}
+body.modo-terminal .msg-content {
+    padding: 0;
+}
+body.modo-terminal .msg-author {
+    color: #33ff33;
+    font-size: 12px;
+    text-shadow: none;
+}
+body.modo-terminal .msg-row.user .msg-text {
+    background: transparent;
+    border: 1px dashed #33ff33;
+    border-radius: 0;
+    padding: 8px 12px;
+    color: #33ff33;
+}
+body.modo-terminal .msg-row.cortana .msg-text {
+    color: #33ff33;
+    text-shadow: none;
+}
+body.modo-terminal .msg-row.user .msg-content {
+    align-items: flex-start;
+    text-align: left;
+}
+body.modo-terminal .msg-row.user .msg-actions {
+    justify-content: flex-start;
+}
+body.modo-terminal .msg-author::before {
+    content: '> ';
+}
+body.modo-terminal .msg-row.user .msg-author {
+    display: block;
+    color: #66ff66;
+    font-size: 11px;
+}
+body.modo-terminal .msg-row.user .msg-author::before {
+    content: 'C:\\USER> ';
+}
+
+/* Scanlines (efeito de monitor antigo) */
+body.modo-terminal #messages::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    background: repeating-linear-gradient(
+        0deg,
+        rgba(0, 255, 0, 0.03) 0px,
+        rgba(0, 255, 0, 0.03) 1px,
+        transparent 1px,
+        transparent 3px
+    );
+    z-index: 100;
+    animation: scanlinesMove 8s linear infinite;
+}
+@keyframes scanlinesMove {
+    from { background-position: 0 0; }
+    to { background-position: 0 100px; }
+}
+
+/* Efeito de brilho verde nos textos */
+body.modo-terminal .msg-text {
+    text-shadow: 0 0 2px #33ff33;
+}
+body.modo-terminal .msg-row.cortana .msg-text {
+    animation: terminalFlicker 4s infinite;
+}
+@keyframes terminalFlicker {
+    0%, 100% { opacity: 1; }
+    92% { opacity: 1; }
+    93% { opacity: 0.6; }
+    94% { opacity: 1; }
+    97% { opacity: 0.8; }
+    98% { opacity: 1; }
+}
+
+/* Barra de Rampancy fica verde */
+body.modo-terminal .rampancy-fill {
+    background: #33ff33;
+    box-shadow: 0 0 10px #33ff33;
+}
+body.modo-terminal .rampancy-glow {
+    display: none;
+}
+
+/* Input estilo terminal */
+body.modo-terminal #input {
+    background: #000;
+    color: #33ff33;
+    border: 1px solid #33ff33;
+    border-radius: 0;
+    padding: 10px;
+}
+body.modo-terminal .input-wrapper {
+    background: #000;
+    border: 1px solid #33ff33;
+    border-radius: 0;
+    box-shadow: none;
+}
+body.modo-terminal .btn-enviar {
+    background: #33ff33;
+    color: #000;
+    border-radius: 0;
+    box-shadow: none;
+    font-weight: bold;
+}
+body.modo-terminal .input-hint {
+    color: #009900;
+}
+
+/* Botões e ícones */
+body.modo-terminal .btn-icon {
+    color: #33ff33;
+    border: 1px solid transparent;
+    border-radius: 0;
+}
+body.modo-terminal .btn-icon:hover {
+    background: #33ff33;
+    color: #000;
+}
+body.modo-terminal .btn-nova {
+    border-radius: 0;
+    border: 1px solid #33ff33;
+    color: #33ff33;
+}
+body.modo-terminal .btn-nova:hover {
+    background: #33ff33;
+    color: #000;
+}
+
+/* Sidebar */
+body.modo-terminal .historico-item {
+    border-radius: 0;
+    border: 1px solid transparent;
+}
+body.modo-terminal .historico-item:hover {
+    border-color: #33ff33;
+    background: #111;
+}
+body.modo-terminal .historico-item.ativa {
+    border-color: #33ff33;
+    border-left: 3px solid #33ff33;
+    background: #0a1a0a;
+}
+body.modo-terminal #busca-historico {
+    border-radius: 0;
+    border: 1px solid #33ff33;
+    background: #000;
+    color: #33ff33;
+}
+
+/* Barra de Rampancy */
+body.modo-terminal #rampancy-strip {
+    background: #000;
+    border-bottom: 1px solid #33ff33;
+}
+body.modo-terminal .rampancy-label {
+    text-shadow: 0 0 5px #33ff33;
+}
+body.modo-terminal .rampancy-bar {
+    border: 1px solid #33ff33;
+    border-radius: 0;
+    background: #000;
+}
+body.modo-terminal .rampancy-fill {
+    border-radius: 0;
+}
+
+/* Modais */
+body.modo-terminal #login-box {
+    background: #000;
+    border: 2px solid #33ff33;
+    border-radius: 0;
+    box-shadow: 0 0 30px #33ff33;
+}
+body.modo-terminal #login-form input {
+    border-radius: 0;
+    border: 1px solid #33ff33;
+    background: #000;
+    color: #33ff33;
+}
+body.modo-terminal #login-form button {
+    border-radius: 0;
+    background: #33ff33;
+    color: #000;
+    font-weight: bold;
+}
+body.modo-terminal .config-card {
+    background: #000;
+    border: 2px solid #33ff33;
+    border-radius: 0;
+    box-shadow: 0 0 30px #33ff33;
+}
+body.modo-terminal .config-tab {
+    border-radius: 0;
+}
+body.modo-terminal .config-tab.ativo {
+    background: #0a1a0a;
+    border-left: 3px solid #33ff33;
+}
+body.modo-terminal .config-btn {
+    border-radius: 0;
+}
+body.modo-terminal .config-label input {
+    border-radius: 0;
+    border: 1px solid #33ff33;
+    background: #000;
+    color: #33ff33;
+}
+body.modo-terminal .diario-card {
+    background: #000;
+    border: 2px solid #33ff33;
+    border-radius: 0;
+    box-shadow: 0 0 30px #33ff33;
+}
+
+/* Cursor piscante no final das mensagens da Cortana */
+body.modo-terminal .msg-row.cortana .msg-text::after {
+    content: '█';
+    animation: cursorPiscar 1s infinite;
+    color: #33ff33;
+    margin-left: 2px;
+    font-size: 12px;
+}
+@keyframes cursorPiscar {
+    0%, 50% { opacity: 1; }
+    51%, 100% { opacity: 0; }
+}
