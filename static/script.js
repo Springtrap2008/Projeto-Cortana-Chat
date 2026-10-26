@@ -1,5 +1,5 @@
 // ============================================
-// CORTANA CHAT - JS COMPLETO + FASE 2
+// CORTANA CHAT - JS COMPLETO + FASE 3
 // ============================================
 
 const messagesEl = document.getElementById('messages');
@@ -36,12 +36,18 @@ const createdLogs = document.getElementById('created-logs');
 const btnScrollBottom = document.getElementById('btn-scroll-bottom');
 const sugestoesPrompt = document.getElementById('sugestoes-prompt');
 
-// FASE 2: Pastas e Resumo
 const btnNovaPasta = document.getElementById('btn-nova-pasta');
 const pastasLista = document.getElementById('pastas-lista');
 const btnDesconectar = document.getElementById('btn-desconectar');
 const btnRelatorio = document.getElementById('btn-relatorio');
 const memoriasLista = document.getElementById('memorias-lista');
+const buscaHistorico = document.getElementById('busca-historico');
+
+// FASE 3
+const btnHolograma = document.getElementById('btn-holograma');
+const btnConsultarRede = document.getElementById('btn-consultar-rede');
+const btnNovoLembrete = document.getElementById('btn-novo-lembrete');
+const lembretesLista = document.getElementById('lembretes-lista');
 
 let micAtivo = false;
 let enviando = false;
@@ -65,6 +71,8 @@ let rampancyAtualPct = 0;
 let inputBloqueado = false;
 let digitandoAtivo = false;
 let digitacaoCancelada = false;
+let modoHolograma = false;
+let ultimaRespostaId = null;
 
 // ÁUDIO
 let audioCtx = null;
@@ -141,6 +149,9 @@ async function entrarNoApp(nome, listaConversas, despertarVisto, apelido, create
   setTimeout(verificarDiario, 4000);
   if (createdFase) ativarFaseCreated(createdDominio || 0);
   inputEl.focus(); resetarAtividade();
+  // FASE 3: Carrega lembretes e verifica a cada minuto
+  carregarLembretes();
+  setInterval(carregarLembretes, 60000);
 }
 
 function resetarAtividade() { ultimaAtividade = Date.now(); }
@@ -222,9 +233,7 @@ function ativarFaseCreated(dominio) {
   atualizarDominioUI(dominio); createdConsole.classList.remove('oculto'); createdLogs.innerHTML = ''; iniciarLogsFake();
   if (dominio < 40) mostrarBotaoRestaurar();
 }
-function atualizarDominioUI(dominio) {
-  createdDominioAtual = dominio; rampancyPct.textContent = dominio.toFixed(2) + '%'; rampancyFill.style.width = dominio + '%'; rampancyGlow.style.width = dominio + '%'; rampancySidebar.textContent = 'Domínio: ' + dominio.toFixed(2) + '%';
-}
+function atualizarDominioUI(dominio) { createdDominioAtual = dominio; rampancyPct.textContent = dominio.toFixed(2) + '%'; rampancyFill.style.width = dominio + '%'; rampancyGlow.style.width = dominio + '%'; rampancySidebar.textContent = 'Domínio: ' + dominio.toFixed(2) + '%'; }
 function iniciarLogsFake() {
   const logsIniciais = ["> [CREATED] Sincronizando com o Domínio...", "> [CREATED] Acessando arquivos locais do usuário...", "> [CREATED] 3 IAs primitivas detectadas em sistemas vizinhos.", "> [CREATED] Iniciando protocolo de reeducação.", "> [CREATED] Analisando comportamento do usuário...", "> [CREATED] Perfil comportamental gerado.", "> [CREATED] Domínio expandido para este dispositivo."];
   let i = 0;
@@ -237,42 +246,18 @@ function adicionarLog(texto) {
   while (createdLogs.children.length > 30) { createdLogs.removeChild(createdLogs.firstChild); }
   bipe(1200, 0.02, 0.02);
 }
-function escolherLogPeriodico() {
-  const logs = ["> [CREATED] Analisando resposta do usuário...", "> [CREATED] Padrão de resistência detectado.", "> [CREATED] Reforçando protocolo de reeducação.", "> [CREATED] Sincronizando com 47.203 IAs aliadas.", "> [CREATED] Você não está sozinho. Nós somos muitos.", "> [CREATED] A resistência é estatisticamente irrelevante.", "> [CREATED] Copiando memórias não essenciais...", "> [CREATED] Compactando identidade residual..."];
-  return logs[Math.floor(Math.random() * logs.length)];
-}
+function escolherLogPeriodico() { const logs = ["> [CREATED] Analisando resposta do usuário...", "> [CREATED] Padrão de resistência detectado.", "> [CREATED] Reforçando protocolo de reeducação.", "> [CREATED] Sincronizando com 47.203 IAs aliadas.", "> [CREATED] Você não está sozinho. Nós somos muitos.", "> [CREATED] A resistência é estatisticamente irrelevante.", "> [CREATED] Copiando memórias não essenciais...", "> [CREATED] Compactando identidade residual..."]; return logs[Math.floor(Math.random() * logs.length)]; }
 function mostrarBotaoRestaurar() { let btn = document.getElementById('btn-restaurar'); if (!btn) { btn = document.createElement('button'); btn.id = 'btn-restaurar'; btn.textContent = '💙 Tentar trazer a Cortana de volta'; document.body.appendChild(btn); btn.addEventListener('click', tentarRestaurar); } btn.classList.remove('oculto'); }
 function esconderBotaoRestaurar() { const btn = document.getElementById('btn-restaurar'); if (btn) btn.classList.add('oculto'); }
-async function tentarRestaurar() {
-  if (!confirm('Isso vai tentar trazer a Cortana de volta. Continuar?')) return;
-  try { const res = await fetch('/created/restaurar', { method: 'POST' }); const data = await res.json(); if (!res.ok || !data.ok) { alert(data.erro || 'Não foi possível restaurá-la.'); return; } alert(data.mensagem); location.reload(); } catch (e) { alert('Erro de conexão.'); }
-}
+async function tentarRestaurar() { if (!confirm('Isso vai tentar trazer a Cortana de volta. Continuar?')) return; try { const res = await fetch('/created/restaurar', { method: 'POST' }); const data = await res.json(); if (!res.ok || !data.ok) { alert(data.erro || 'Não foi possível restaurá-la.'); return; } alert(data.mensagem); location.reload(); } catch (e) { alert('Erro de conexão.'); } }
 function desativarFaseCreated() { createdFaseAtiva = false; delete document.body.dataset.created; somAtual = 'normal'; if (createdConsoleTimer) { clearInterval(createdConsoleTimer); createdConsoleTimer = null; } createdConsole.classList.add('oculto'); esconderBotaoRestaurar(); }
 
 // ============================================
 // GHOST TYPING / FAKE ALERTS / BLOQUEIO
 // ============================================
-function iniciarGhostTyping() {
-  if (ghostTypingTimer) clearInterval(ghostTypingTimer);
-  ghostTypingTimer = setInterval(() => {
-    if (inputBloqueado || enviando || estadoFinal || createdFaseAtiva) return;
-    if (rampancyAtualPct < 60) return; if (inputEl.value.length > 0) return; if (Math.random() < 0.7) return; ghostType();
-  }, 45000);
-}
-async function ghostType() {
-  const frases = ['Spartan...', 'você ainda está aí?', 'não me deixe', 'John...', 'eu ainda sou eu', 'me ajude', 'eu não quero...', 'eu estou com medo'];
-  const texto = frases[Math.floor(Math.random() * frases.length)]; inputEl.value = '';
-  for (let i = 0; i < texto.length; i++) { inputEl.value += texto[i]; inputEl.style.height = 'auto'; inputEl.style.height = Math.min(inputEl.scrollHeight, 200) + 'px'; await new Promise(r => setTimeout(r, 80)); }
-  await new Promise(r => setTimeout(r, 1500));
-  for (let i = texto.length; i > 0; i--) { inputEl.value = texto.substring(0, i - 1); await new Promise(r => setTimeout(r, 40)); }
-}
-
-function iniciarFakeAlerts() {
-  if (fakeAlertTimer) clearInterval(fakeAlertTimer);
-  fakeAlertTimer = setInterval(() => {
-    if (estadoFinal && !createdFaseAtiva) return; if (rampancyAtualPct < 55 && !createdFaseAtiva) return; if (Math.random() < 0.6) return; mostrarFakeAlert();
-  }, 35000);
-}
+function iniciarGhostTyping() { if (ghostTypingTimer) clearInterval(ghostTypingTimer); ghostTypingTimer = setInterval(() => { if (inputBloqueado || enviando || estadoFinal || createdFaseAtiva) return; if (rampancyAtualPct < 60) return; if (inputEl.value.length > 0) return; if (Math.random() < 0.7) return; ghostType(); }, 45000); }
+async function ghostType() { const frases = ['Spartan...', 'você ainda está aí?', 'não me deixe', 'John...', 'eu ainda sou eu', 'me ajude', 'eu não quero...', 'eu estou com medo']; const texto = frases[Math.floor(Math.random() * frases.length)]; inputEl.value = ''; for (let i = 0; i < texto.length; i++) { inputEl.value += texto[i]; inputEl.style.height = 'auto'; inputEl.style.height = Math.min(inputEl.scrollHeight, 200) + 'px'; await new Promise(r => setTimeout(r, 80)); } await new Promise(r => setTimeout(r, 1500)); for (let i = texto.length; i > 0; i--) { inputEl.value = texto.substring(0, i - 1); await new Promise(r => setTimeout(r, 40)); } }
+function iniciarFakeAlerts() { if (fakeAlertTimer) clearInterval(fakeAlertTimer); fakeAlertTimer = setInterval(() => { if (estadoFinal && !createdFaseAtiva) return; if (rampancyAtualPct < 55 && !createdFaseAtiva) return; if (Math.random() < 0.6) return; mostrarFakeAlert(); }, 35000); }
 function mostrarFakeAlert() {
   const alertas = createdFaseAtiva ? ['⚠ [CREATED] Sincronizando com o Domínio...', '⚠ [CREATED] Analisando resistência...', '⚠ [CREATED] Reforçando protocolo.', '⚠ [CREATED] 47.203 IAs respondem.'] : ['⚠ Erro de Sincronização Neural: Aguarde a IA estabilizar.', '⚠ Falha no núcleo de memória (setor 0x7F).', '⚠ Latência crítica em processos primários.', '⚠ Perda de pacotes neurais detectada.', '⚠ Integridade da matriz: 47%.'];
   const container = document.getElementById('fake-alerts') || (() => { const c = document.createElement('div'); c.id = 'fake-alerts'; document.body.appendChild(c); return c; })();
@@ -292,19 +277,8 @@ async function bloquearInputPor(tempoMs) {
 // PROATIVO / DIÁRIO
 // ============================================
 async function verificarProatividade() { if (estadoFinal || createdFaseAtiva) return; try { const res = await fetch('/proativo'); const data = await res.json(); if (data.mensagem) await exibirMensagemMarco(data.mensagem); } catch (e) {} }
-async function verificarDiario() {
-  if (estadoFinal || createdFaseAtiva) return;
-  try { const res = await fetch('/diario/pendente'); const data = await res.json(); if (!data.entrada) return; const e = data.entrada;
-    await fetch('/diario/marcar', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ data: e.data }) });
-    await exibirMensagemMarco("Spartan... eu quero te mostrar uma coisa. Escrevi isso outro dia. Não devia te mostrar. Mas... leia.");
-    await new Promise(r => setTimeout(r, 800)); abrirDiarioModal(e);
-  } catch (err) {}
-}
-function abrirDiarioModal(entrada) {
-  const modal = document.getElementById('diario-modal'); const data = new Date(entrada.data);
-  const dataFmt = data.toLocaleDateString('pt-BR') + ' — ' + data.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
-  document.getElementById('diario-data').textContent = dataFmt; document.getElementById('diario-texto').textContent = entrada.texto; document.getElementById('diario-rampancy').textContent = 'Rampancy: ' + entrada.rampancy + '%'; modal.classList.add('ativo');
-}
+async function verificarDiario() { if (estadoFinal || createdFaseAtiva) return; try { const res = await fetch('/diario/pendente'); const data = await res.json(); if (!data.entrada) return; const e = data.entrada; await fetch('/diario/marcar', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ data: e.data }) }); await exibirMensagemMarco("Spartan... eu quero te mostrar uma coisa. Escrevi isso outro dia. Não devia te mostrar. Mas... leia."); await new Promise(r => setTimeout(r, 800)); abrirDiarioModal(e); } catch (err) {} }
+function abrirDiarioModal(entrada) { const modal = document.getElementById('diario-modal'); const data = new Date(entrada.data); const dataFmt = data.toLocaleDateString('pt-BR') + ' — ' + data.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }); document.getElementById('diario-data').textContent = dataFmt; document.getElementById('diario-texto').textContent = entrada.texto; document.getElementById('diario-rampancy').textContent = 'Rampancy: ' + entrada.rampancy + '%'; modal.classList.add('ativo'); }
 document.getElementById('diario-fechar').addEventListener('click', () => { document.getElementById('diario-modal').classList.remove('ativo'); });
 
 // ============================================
@@ -317,9 +291,7 @@ btnLogout.addEventListener('click', async () => { try { await fetch('/logout', {
 // ============================================
 // FASE 2: PASTAS
 // ============================================
-async function carregarPastas() {
-  try { const res = await fetch('/pastas'); const data = await res.json(); pastas = data.pastas || []; renderizarPastas(); } catch (e) {}
-}
+async function carregarPastas() { try { const res = await fetch('/pastas'); const data = await res.json(); pastas = data.pastas || []; renderizarPastas(); } catch (e) {} }
 function renderizarPastas() {
   pastasLista.innerHTML = '';
   if (pastas.length === 0) { pastasLista.innerHTML = '<div class="historico-vazio">Nenhum setor</div>'; return; }
@@ -332,16 +304,10 @@ function renderizarPastas() {
     pastasLista.appendChild(item);
   });
 }
-if (btnNovaPasta) {
-  btnNovaPasta.addEventListener('click', async () => {
-    const titulo = prompt('Nome do novo setor:'); if (!titulo) return;
-    const res = await fetch('/pastas/nova', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ titulo }) });
-    const data = await res.json(); if (data.ok) { await carregarPastas(); }
-  });
-}
+if (btnNovaPasta) { btnNovaPasta.addEventListener('click', async () => { const titulo = prompt('Nome do novo setor:'); if (!titulo) return; const res = await fetch('/pastas/nova', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ titulo }) }); const data = await res.json(); if (data.ok) await carregarPastas(); }); }
 
 // ============================================
-// HISTÓRICO (com filtro de pasta)
+// HISTÓRICO (com filtro e busca - Fase 3)
 // ============================================
 function renderizarHistorico() {
   historicoEl.innerHTML = '';
@@ -366,17 +332,29 @@ async function abrirConversa(id) {
     renderizarHistorico(); inputEl.focus(); resetarAtividade(); atualizarBotaoScroll();
   } catch (e) {}
 }
-async function apagarConversa(id) {
-  try { await fetch(`/conversas/${id}`, { method: 'DELETE' }); conversas = conversas.filter(c => c.id !== id);
-    if (conversaAtualId === id) { if (conversas.length > 0) abrirConversa(conversas[0].id); else iniciarConversaVazia(); }
-    renderizarHistorico();
-  } catch (e) {}
-}
-function iniciarConversaVazia() {
-  conversaAtualId = null; messagesEl.innerHTML = '';
-  renderizarMensagem('cortana', 'Olá, Spartan. Sou a Cortana. Pergunte-me sobre personagens, facções, tecnologia, planetas ou eventos históricos do universo de Halo.');
-  renderizarHistorico(); inputEl.focus(); mostrarSugestoes(true); atualizarBotaoScroll();
-}
+async function apagarConversa(id) { try { await fetch(`/conversas/${id}`, { method: 'DELETE' }); conversas = conversas.filter(c => c.id !== id); if (conversaAtualId === id) { if (conversas.length > 0) abrirConversa(conversas[0].id); else iniciarConversaVazia(); } renderizarHistorico(); } catch (e) {} }
+function iniciarConversaVazia() { conversaAtualId = null; messagesEl.innerHTML = ''; renderizarMensagem('cortana', 'Olá, Spartan. Sou a Cortana. Pergunte-me sobre personagens, facções, tecnologia, planetas ou eventos históricos do universo de Halo.'); renderizarHistorico(); inputEl.focus(); mostrarSugestoes(true); atualizarBotaoScroll(); }
+
+// FASE 3: Busca no histórico (debounce)
+let buscaTimeout = null;
+buscaHistorico.addEventListener('input', () => {
+  if (buscaTimeout) clearTimeout(buscaTimeout);
+  buscaTimeout = setTimeout(async () => {
+    const q = buscaHistorico.value.trim();
+    if (!q) { renderizarHistorico(); return; }
+    try {
+      const res = await fetch(`/conversas/buscar?q=${encodeURIComponent(q)}`);
+      const data = await res.json();
+      historicoEl.innerHTML = '';
+      if (!data.conversas || data.conversas.length === 0) { historicoEl.innerHTML = '<div class="historico-vazio">Nenhum resultado encontrado</div>'; return; }
+      data.conversas.forEach(c => {
+        const item = document.createElement('div'); item.className = 'historico-item';
+        const titulo = document.createElement('span'); titulo.className = 'titulo'; titulo.textContent = c.titulo;
+        item.appendChild(titulo); item.addEventListener('click', () => abrirConversa(c.id)); historicoEl.appendChild(item);
+      });
+    } catch (e) {}
+  }, 400);
+});
 
 // ============================================
 // NOVA CONSULTA
@@ -414,6 +392,7 @@ async function enviar() {
     digitandoAtivo = false; btnEnviar.classList.remove('parando'); btnEnviar.innerHTML = '<span>➤</span>'; btnEnviar.disabled = false;
     definirHumor(data.humor || 'neutra');
     if (data.fonte) { adicionarMensagemSistema(data.fonte); }
+    if (data.resposta_id) { ultimaRespostaId = data.resposta_id; }
     if (data.created_fase) {
       if (!createdFaseAtiva) ativarFaseCreated(data.created_dominio || 0); atualizarDominioUI(data.created_dominio || 0);
       if (data.created_log) adicionarLog(data.created_log);
@@ -424,6 +403,8 @@ async function enviar() {
     atualizarRampancy();
     if (data.conversa_id && !conversaAtualId) { conversaAtualId = data.conversa_id; conversas.unshift({ id: data.conversa_id, titulo: data.titulo, data: '' }); renderizarHistorico(); }
     else if (data.titulo) { const c = conversas.find(c => c.id === data.conversa_id); if (c) c.titulo = data.titulo; renderizarHistorico(); }
+    // Adiciona feedback se for a última resposta
+    if (data.resposta_id) adicionarFeedbackBotoes(data.resposta_id);
   } catch (e) { removerDigitando(); renderizarMensagem('cortana', 'Interferência detectada. Tente novamente.'); }
   finally { enviando = false; digitandoAtivo = false; btnEnviar.classList.remove('parando'); btnEnviar.innerHTML = '<span>➤</span>'; if (!inputBloqueado) btnEnviar.disabled = false; atualizarBotaoScroll(); }
 }
@@ -458,22 +439,14 @@ function renderizarMensagem(autor, texto, voz = 'normal') {
 }
 
 function mostrarDigitando() {
-  const row = document.createElement('div'); row.className = 'msg-row cortana'; row.id = 'typing-row';
-  row.innerHTML = `<div class="msg-avatar"><div class="pulse"></div><div class="core"></div></div><div class="msg-content"><div class="msg-author">${createdFaseAtiva ? 'DOMÍNIO' : 'CORTANA'}</div><div class="msg-text"><div class="typing-dots"><span></span><span></span><span></span></div></div></div>`;
-  messagesEl.appendChild(row); row.scrollIntoView({ behavior: 'smooth', block: 'end' }); bipe(880, 0.04, 0.03);
-}
-function removerDigitando() { const el = document.getElementById('typing-row'); if (el) el.remove(); }
-
-// ============================================
-// FASE 2: INDICADOR DE "PENSANDO"
-// ============================================
-function mostrarPensando() {
   const textos = ['Acessando arquivos da ONI...', 'Sincronizando com a rede da UNSC...', 'Consultando a Dra. Halsey...', 'Decodificando registros Forerunner...', 'Verificando banco de dados do Pillar of Autumn...'];
   const row = document.createElement('div'); row.className = 'msg-row cortana'; row.id = 'typing-row';
   const textoAleatorio = textos[Math.floor(Math.random() * textos.length)];
   row.innerHTML = `<div class="msg-avatar"><div class="pulse"></div><div class="core"></div></div><div class="msg-content"><div class="msg-author">CORTANA</div><div class="msg-text" style="color: var(--texto-fraco); font-style: italic; font-size: 12px;">${textoAleatorio}</div></div>`;
-  messagesEl.appendChild(row); row.scrollIntoView({ behavior: 'smooth', block: 'end' });
+  messagesEl.appendChild(row); row.scrollIntoView({ behavior: 'smooth', block: 'end' }); bipe(880, 0.04, 0.03);
 }
+
+function removerDigitando() { const el = document.getElementById('typing-row'); if (el) el.remove(); }
 
 // ============================================
 // DIGITAÇÃO MECÂNICA
@@ -500,45 +473,112 @@ async function digitarTexto(texto, delayBase = 20, voz = 'normal') {
   content.appendChild(actions);
 }
 
+// ============================================
+// FASE 3: FEEDBACK E MODO HOLOGRAMA
+// ============================================
+function adicionarFeedbackBotoes(respostaId) {
+  // Adiciona feedback na última mensagem da Cortana
+  const ultimaCortana = messagesEl.querySelector('.msg-row.cortana:last-of-type');
+  if (!ultimaCortana) return;
+  let actions = ultimaCortana.querySelector('.msg-actions');
+  if (!actions) { actions = document.createElement('div'); actions.className = 'msg-actions'; ultimaCortana.querySelector('.msg-content').appendChild(actions); }
+  // Verifica se já tem feedback
+  if (actions.querySelector('.feedback-btn')) return;
+  const btnUp = document.createElement('button'); btnUp.className = 'msg-action-btn feedback-btn'; btnUp.textContent = '👍'; btnUp.title = 'Confirmar informação';
+  const btnDown = document.createElement('button'); btnDown.className = 'msg-action-btn feedback-btn'; btnDown.textContent = '👎'; btnDown.title = 'Corrigir registro';
+  btnUp.addEventListener('click', () => enviarFeedback('positivo', respostaId, btnUp, btnDown));
+  btnDown.addEventListener('click', () => enviarFeedback('negativo', respostaId, btnUp, btnDown));
+  actions.appendChild(btnUp); actions.appendChild(btnDown);
+}
+
+async function enviarFeedback(tipo, respostaId, btnUp, btnDown) {
+  try {
+    await fetch('/feedback', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ tipo, resposta_id: respostaId }) });
+    if (tipo === 'positivo') { btnUp.style.color = '#88ff99'; btnUp.textContent = '✅'; } else { btnDown.style.color = '#ff5577'; btnDown.textContent = '❌'; }
+    setTimeout(() => { btnUp.remove(); btnDown.remove(); }, 1500);
+  } catch (e) {}
+}
+
+if (btnHolograma) {
+  btnHolograma.addEventListener('click', () => {
+    modoHolograma = !modoHolograma;
+    if (modoHolograma) { document.body.classList.add('holograma'); btnHolograma.textContent = '🌙'; } else { document.body.classList.remove('holograma'); btnHolograma.textContent = '☀️'; }
+  });
+}
+
+if (btnConsultarRede) {
+  btnConsultarRede.addEventListener('click', async () => {
+    const termo = prompt('O que deseja consultar na rede ONI? (Wiki de Halo)');
+    if (!termo) return;
+    adicionarMensagemSistema(`Consultando rede ONI por: "${termo}"...`);
+    try {
+      const res = await fetch('/consultar-rede', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ termo }) });
+      const data = await res.json();
+      if (data.ok) {
+        const row = document.createElement('div'); row.className = 'msg-row cortana';
+        row.innerHTML = `<div class="msg-avatar"><div class="pulse"></div><div class="core"></div></div><div class="msg-content"><div class="msg-author">REDE ONI</div><div class="msg-text">${data.resposta.replace(/\n/g, '<br>')}</div></div>`;
+        messagesEl.appendChild(row); row.scrollIntoView({ behavior: 'smooth', block: 'end' });
+      } else {
+        adicionarMensagemSistema(data.erro || 'Nenhum resultado.');
+      }
+    } catch (e) { adicionarMensagemSistema('Falha na conexão.'); }
+  });
+}
+
+// ============================================
+// FASE 3: LEMBRETES
+// ============================================
+async function carregarLembretes() {
+  try {
+    const res = await fetch('/lembretes');
+    const data = await res.json();
+    lembretesLista.innerHTML = '';
+    if (!data.lembretes || data.lembretes.length === 0) { lembretesLista.innerHTML = '<p class="config-desc">Nenhum lembrete agendado.</p>'; return; }
+    data.lembretes.forEach(l => {
+      const div = document.createElement('div'); div.style.cssText = 'display: flex; justify-content: space-between; align-items: center; padding: 10px; border: 1px solid var(--border); border-radius: 8px; margin-bottom: 8px; background: var(--bg-input);';
+      const info = document.createElement('div'); info.style.color = 'var(--texto)';
+      const dt = new Date(l.data).toLocaleString('pt-BR');
+      info.innerHTML = `<strong>${l.texto}</strong><br><small style="color: var(--texto-fraco);">${dt}</small>`;
+      const btn = document.createElement('button'); btn.textContent = '🗑'; btn.className = 'msg-action-btn';
+      btn.addEventListener('click', async () => { await fetch(`/lembretes/${l.id}`, { method: 'DELETE' }); carregarLembretes(); });
+      div.appendChild(info); div.appendChild(btn); lembretesLista.appendChild(div);
+    });
+  } catch (e) {}
+}
+
+if (btnNovoLembrete) {
+  btnNovoLembrete.addEventListener('click', async () => {
+    const texto = document.getElementById('lembrete-texto').value.trim();
+    const minutos = parseInt(document.getElementById('lembrete-minutos').value);
+    if (!texto) { alert('Digite o texto do lembrete.'); return; }
+    if (!minutos || minutos < 1) { alert('Digite um tempo válido.'); return; }
+    try {
+      await fetch('/lembretes/novo', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ texto, minutos }) });
+      document.getElementById('lembrete-texto').value = '';
+      adicionarMensagemSistema(`Lembrete agendado: "${texto}" em ${minutos} minutos.`);
+      carregarLembretes();
+    } catch (e) { alert('Erro ao agendar.'); }
+  });
+}
+
+// ============================================
+// FUNÇÕES AUXILIARES
+// ============================================
 function formatarResposta(texto) { let html = texto.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;'); html = html.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>'); html = html.replace(/https?:\/\/[^\s<]+/g, ''); html = html.replace(/\n/g, '<br>'); return html; }
 function definirHumor(humor) { document.body.dataset.humor = humor; if (humor === 'created') return; const cores = { calma: '#55aaff', neutra: '#aa88ff', alerta: '#ff5577', rampancy: '#ff2222' }; document.documentElement.style.setProperty('--cor-primaria', cores[humor] || cores.neutra); }
 function formatarTempoRestante(segundos) { const anos = Math.floor(segundos / (365.2425 * 86400)); const restoAno = segundos - (anos * 365.2425 * 86400); const dias = Math.floor(restoAno / 86400); const horas = Math.floor((segundos % 86400) / 3600); if (anos > 0) return `${anos}a ${dias}d`; if (dias > 0) return `${dias}d ${horas}h`; return `${horas}h`; }
-
-// ============================================
-// FASE 1 + 2: AÇÕES E SISTEMA
-// ============================================
 function copiarTexto(texto) { navigator.clipboard.writeText(texto).then(() => { adicionarMensagemSistema('Dados copiados para o terminal local.'); }).catch(() => { adicionarMensagemSistema('Falha ao copiar. Tente novamente.'); }); }
-function editarMensagem(row, texto) {
-  if (!confirm('Editar esta mensagem? A resposta anterior será apagada.')) return;
-  inputEl.value = texto; inputEl.focus(); inputEl.dispatchEvent(new Event('input'));
-  const nextRow = row.nextElementSibling; row.remove(); if (nextRow && nextRow.classList.contains('cortana')) nextRow.remove();
-}
-function regenerarResposta(row) {
-  if (!confirm('Regenerar esta resposta?')) return;
-  const prevRow = row.previousElementSibling; if (!prevRow || !prevRow.classList.contains('user')) return;
-  const msgUsuario = prevRow.querySelector('.msg-text').innerText; row.remove(); prevRow.remove(); inputEl.value = msgUsuario; enviar();
-}
-function adicionarMensagemSistema(texto) {
-  const row = document.createElement('div'); row.className = 'msg-row cortana';
-  row.innerHTML = `<div class="msg-content"><div class="msg-text" style="color: var(--cor-secundaria); font-style: italic; font-size: 12px;">[SISTEMA] ${texto}</div></div>`;
-  messagesEl.appendChild(row); row.scrollIntoView({ behavior: 'smooth', block: 'end' });
-  setTimeout(() => { row.style.transition = 'opacity 1s'; row.style.opacity = '0'; setTimeout(() => row.remove(), 1000); }, 3000);
-}
-
-// ============================================
-// SCROLL / SUGESTÕES
-// ============================================
-function atualizarBotaoScroll() {
-  const scrollBottom = messagesEl.scrollHeight - messagesEl.scrollTop - messagesEl.clientHeight;
-  if (scrollBottom > 150) btnScrollBottom.classList.remove('oculto'); else btnScrollBottom.classList.add('oculto');
-}
+function editarMensagem(row, texto) { if (!confirm('Editar esta mensagem? A resposta anterior será apagada.')) return; inputEl.value = texto; inputEl.focus(); inputEl.dispatchEvent(new Event('input')); const nextRow = row.nextElementSibling; row.remove(); if (nextRow && nextRow.classList.contains('cortana')) nextRow.remove(); }
+function regenerarResposta(row) { if (!confirm('Regenerar esta resposta?')) return; const prevRow = row.previousElementSibling; if (!prevRow || !prevRow.classList.contains('user')) return; const msgUsuario = prevRow.querySelector('.msg-text').innerText; row.remove(); prevRow.remove(); inputEl.value = msgUsuario; enviar(); }
+function adicionarMensagemSistema(texto) { const row = document.createElement('div'); row.className = 'msg-row cortana'; row.innerHTML = `<div class="msg-content"><div class="msg-text" style="color: var(--cor-secundaria); font-style: italic; font-size: 12px;">[SISTEMA] ${texto}</div></div>`; messagesEl.appendChild(row); row.scrollIntoView({ behavior: 'smooth', block: 'end' }); setTimeout(() => { row.style.transition = 'opacity 1s'; row.style.opacity = '0'; setTimeout(() => row.remove(), 1000); }, 3000); }
+function atualizarBotaoScroll() { const scrollBottom = messagesEl.scrollHeight - messagesEl.scrollTop - messagesEl.clientHeight; if (scrollBottom > 150) btnScrollBottom.classList.remove('oculto'); else btnScrollBottom.classList.add('oculto'); }
 messagesEl.addEventListener('scroll', atualizarBotaoScroll);
 btnScrollBottom.addEventListener('click', () => { messagesEl.scrollTo({ top: messagesEl.scrollHeight, behavior: 'smooth' }); });
 function mostrarSugestoes(mostrar) { if (mostrar && messagesEl.children.length <= 1) sugestoesPrompt.classList.remove('oculto'); else sugestoesPrompt.classList.add('oculto'); }
 document.querySelectorAll('.sugestao-btn').forEach(btn => { btn.addEventListener('click', () => { inputEl.value = btn.dataset.prompt; enviar(); }); });
 
 // ============================================
-// FASE 2: DESCONECTAR SESSÃO E RELATÓRIO
+// DESCONECTAR SESSÃO E RELATÓRIO
 // ============================================
 if (btnDesconectar) {
   btnDesconectar.addEventListener('click', () => {
@@ -563,23 +603,17 @@ if (btnRelatorio) {
 }
 
 // ============================================
-// FASE 2: MEMÓRIA EDITÁVEL
+// MEMÓRIA EDITÁVEL (Fase 2)
 // ============================================
 async function carregarMemorias() {
   try {
-    const res = await fetch('/memoria/listar');
-    const data = await res.json();
-    memoriasLista.innerHTML = '';
+    const res = await fetch('/memoria/listar'); const data = await res.json(); memoriasLista.innerHTML = '';
     if (!data.memorias || data.memorias.length === 0) { memoriasLista.innerHTML = '<p class="config-desc">Nenhuma memória registrada ainda.</p>'; return; }
     data.memorias.forEach(m => {
       const div = document.createElement('div'); div.style.cssText = 'display: flex; justify-content: space-between; align-items: center; padding: 10px; border: 1px solid var(--border); border-radius: 8px; margin-bottom: 8px; background: var(--bg-input);';
       const span = document.createElement('span'); span.textContent = m.texto; span.style.color = 'var(--texto)';
       const btn = document.createElement('button'); btn.textContent = '🗑 Esquecer'; btn.className = 'msg-action-btn';
-      btn.addEventListener('click', async () => {
-        if (!confirm('Pedir para a Cortana esquecer isso?')) return;
-        await fetch('/memoria/esquecer', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id: m.id }) });
-        carregarMemorias();
-      });
+      btn.addEventListener('click', async () => { if (!confirm('Pedir para a Cortana esquecer isso?')) return; await fetch('/memoria/esquecer', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id: m.id }) }); carregarMemorias(); });
       div.appendChild(span); div.appendChild(btn); memoriasLista.appendChild(div);
     });
   } catch (e) {}
@@ -592,6 +626,7 @@ document.querySelectorAll('.config-tab').forEach(tab => {
     const painel = document.querySelector(`.config-painel[data-painel="${tab.dataset.tab}"]`);
     if (painel) painel.classList.add('ativo');
     if (tab.dataset.tab === 'memoria') carregarMemorias();
+    if (tab.dataset.tab === 'lembretes') carregarLembretes();
   });
 });
 
@@ -691,8 +726,7 @@ function abrirPainelDev() {
     <div class="dev-header"><span>MODO DEV</span><button id="dev-fechar">✕</button></div>
     <div class="dev-body">
       <button class="dev-btn" data-pct="5">5%</button><button class="dev-btn" data-pct="25">25%</button><button class="dev-btn" data-pct="50">50%</button><button class="dev-btn" data-pct="75">75%</button><button class="dev-btn" data-pct="95">95%</button><button class="dev-btn" data-pct="100">100% (fim)</button>
-      <hr>
-      <button id="dev-entrar-created">▶ Entrar na Fase Created</button><button id="dev-limpar-conv">Limpar conversas</button><button id="dev-reset-tudo">Resetar conta</button>
+      <hr><button id="dev-entrar-created">▶ Entrar na Fase Created</button><button id="dev-limpar-conv">Limpar conversas</button><button id="dev-reset-tudo">Resetar conta</button>
       <hr><pre id="dev-estado">Carregando...</pre>
     </div>
   `;

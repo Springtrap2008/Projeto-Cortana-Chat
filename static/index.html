@@ -31,18 +31,16 @@
       <div class="sidebar-top">
         <button id="btn-nova" class="btn-nova"><span class="icon">+</span><span>Nova consulta</span></button>
       </div>
-
-      <!-- FASE 2: Pastas -->
       <div class="sidebar-section-title">Setores da ONI</div>
-      <nav id="pastas-lista">
-        <div class="historico-vazio">Nenhum setor</div>
-      </nav>
+      <nav id="pastas-lista"><div class="historico-vazio">Nenhum setor</div></nav>
       <button id="btn-nova-pasta" class="btn-nova" style="margin: 0 8px 8px; padding: 6px; font-size: 11px;">+ Novo Setor</button>
 
       <div class="sidebar-section-title">Histórico</div>
-      <nav id="historico">
-        <div class="historico-vazio">Nenhuma consulta ainda</div>
-      </nav>
+      <!-- FASE 3: Busca no histórico -->
+      <div style="padding: 0 8px 8px;">
+        <input type="text" id="busca-historico" placeholder="Buscar conversas..." style="width: 100%; padding: 6px 10px; background: var(--bg-input); border: 1px solid var(--border); border-radius: 6px; color: var(--texto); font-size: 12px; outline: none;">
+      </div>
+      <nav id="historico"><div class="historico-vazio">Nenhuma consulta ainda</div></nav>
 
       <div class="sidebar-bottom">
         <div class="user-chip">
@@ -68,7 +66,8 @@
           </div>
         </div>
         <div class="topbar-actions">
-          <!-- FASE 2: Botões de Desconectar e Relatório -->
+          <!-- FASE 3: Botão de Modo Holograma -->
+          <button id="btn-holograma" class="btn-icon" title="Modo Holograma">☀️</button>
           <button id="btn-desconectar" class="btn-icon" title="Desconectar Sessão">🚪</button>
           <button id="btn-relatorio" class="btn-icon" title="Relatório de Missão">📋</button>
           <button id="btn-som" class="btn-icon" title="Som ambiente">🔇</button>
@@ -103,6 +102,8 @@
       <div id="input-area">
         <div class="input-wrapper">
           <textarea id="input" placeholder="Pergunte sobre a lore de Halo..." rows="1"></textarea>
+          <!-- FASE 3: Botão de Consultar Rede ONI -->
+          <button id="btn-consultar-rede" class="btn-icon" title="Consultar Rede ONI (Wiki)" style="background: transparent; color: var(--cor-secundaria); font-size: 18px;">🌐</button>
           <button id="btn-enviar" class="btn-enviar" title="Enviar"><span>➤</span></button>
         </div>
         <div class="input-hint">A Cortana pode cometer erros. Verifique as informações nos arquivos.</div>
@@ -133,8 +134,9 @@
           <button class="config-tab ativo" data-tab="perfil">👤 Perfil</button>
           <button class="config-tab" data-tab="seguranca">🔒 Segurança</button>
           <button class="config-tab" data-tab="dados">📦 Dados</button>
-          <!-- FASE 2: Aba Memória -->
           <button class="config-tab" data-tab="memoria">🧠 Memória</button>
+          <!-- FASE 3: Aba de Lembretes -->
+          <button class="config-tab" data-tab="lembretes">⏰ Lembretes</button>
           <button class="config-tab perigo" data-tab="perigo">⚠ Zona de Perigo</button>
         </nav>
         <div class="config-content">
@@ -176,13 +178,21 @@
             <button id="cfg-resetar" class="config-btn aviso">🔄 Resetar conta</button>
           </div>
 
-          <!-- FASE 2: Painel de Memória -->
           <div class="config-painel" data-painel="memoria">
             <h3>Memória da Cortana</h3>
             <p class="config-desc">O que a Cortana aprendeu sobre você. Você pode pedir para ela esquecer algo.</p>
-            <div id="memorias-lista">
-              <p class="config-desc">Nenhuma memória registrada ainda.</p>
-            </div>
+            <div id="memorias-lista"><p class="config-desc">Nenhuma memória registrada ainda.</p></div>
+          </div>
+
+          <!-- FASE 3: Painel de Lembretes -->
+          <div class="config-painel" data-painel="lembretes">
+            <h3>Lembretes</h3>
+            <p class="config-desc">A Cortana te avisa quando o prazo chegar.</p>
+            <label class="config-label"><span>Texto do lembrete</span><input type="text" id="lembrete-texto" placeholder="Ex: Perguntar sobre os Flood"></label>
+            <label class="config-label"><span>Daqui a quantos minutos?</span><input type="number" id="lembrete-minutos" value="60" min="1"></label>
+            <button id="btn-novo-lembrete" class="config-btn">⏰ Agendar Lembrete</button>
+            <hr class="config-hr">
+            <div id="lembretes-lista"><p class="config-desc">Nenhum lembrete agendado.</p></div>
           </div>
 
           <div class="config-painel" data-painel="perigo">
