@@ -1344,3 +1344,37 @@ document.head.appendChild(styleDev);
 // ============================================
 verificarSessao();
 
+async function registrarPush() {
+    if (!('serviceWorker' in navigator) || !('PushManager' in window)) {
+        alert('Seu navegador não suporta notificações push.');
+        return;
+    }
+
+    try {
+        const permission = await Notification.requestPermission();
+        if (permission !== 'granted') {
+            alert('Permissão negada. A Cortana não poderá te avisar de nada.');
+            return;
+        }
+
+        const registration = await navigator.serviceWorker.ready;
+        const response = await fetch('/vapid-public-key');
+        const data = await response.json();
+        
+        const subscription = await registration.pushManager.subscribe({
+            userVisibleOnly: true,
+            applicationServerKey: data.publicKey
+        });
+
+        await fetch('/subscribe', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(subscription)
+        });
+        
+        alert('Notificações ativadas! A Cortana agora pode te avisar.');
+    } catch (error) {
+        console.error('Erro ao registrar push:', error);
+        alert('Erro ao ativar notificações: ' + error.message);
+    }
+}
