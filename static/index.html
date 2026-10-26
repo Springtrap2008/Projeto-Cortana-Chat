@@ -5,8 +5,6 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Cortana - Lore de Halo</title>
   <link rel="stylesheet" href="/static/style.css">
-  
-  <!-- PWA / iOS -->
   <link rel="manifest" href="/static/manifest.json">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
@@ -16,22 +14,12 @@
 
   <div id="login-overlay">
     <div id="login-box">
-      <div class="login-avatar">
-        <div class="pulse"></div>
-        <div class="core"></div>
-      </div>
+      <div class="login-avatar"><div class="pulse"></div><div class="core"></div></div>
       <h1>CORTANA</h1>
       <p class="login-sub">Acesse o terminal para consultar os arquivos da ONI</p>
-
       <form id="login-form">
-        <label>
-          <span>Nome de usuário</span>
-          <input type="text" id="login-nome" placeholder="Ex: Spartan117" autocomplete="off" required>
-        </label>
-        <label>
-          <span>Senha</span>
-          <input type="password" id="login-senha" placeholder="••••••••" required>
-        </label>
+        <label><span>Nome de usuário</span><input type="text" id="login-nome" placeholder="Ex: Spartan117" autocomplete="off" required></label>
+        <label><span>Senha</span><input type="password" id="login-senha" placeholder="••••••••" required></label>
         <button type="submit">Entrar</button>
         <div id="login-erro" class="login-erro"></div>
       </form>
@@ -41,11 +29,15 @@
   <div id="app" class="oculto">
     <aside id="sidebar">
       <div class="sidebar-top">
-        <button id="btn-nova" class="btn-nova">
-          <span class="icon">+</span>
-          <span>Nova consulta</span>
-        </button>
+        <button id="btn-nova" class="btn-nova"><span class="icon">+</span><span>Nova consulta</span></button>
       </div>
+
+      <!-- FASE 2: Pastas -->
+      <div class="sidebar-section-title">Setores da ONI</div>
+      <nav id="pastas-lista">
+        <div class="historico-vazio">Nenhum setor</div>
+      </nav>
+      <button id="btn-nova-pasta" class="btn-nova" style="margin: 0 8px 8px; padding: 6px; font-size: 11px;">+ Novo Setor</button>
 
       <div class="sidebar-section-title">Histórico</div>
       <nav id="historico">
@@ -69,16 +61,16 @@
       <header id="topbar">
         <button id="btn-toggle-sidebar" class="btn-icon" title="Mostrar/ocultar sidebar">☰</button>
         <div class="topbar-title">
-          <div class="avatar-mini" id="avatar-topbar">
-            <div class="pulse"></div>
-            <div class="core"></div>
-          </div>
+          <div class="avatar-mini" id="avatar-topbar"><div class="pulse"></div><div class="core"></div></div>
           <div>
             <h1 id="topbar-nome">CORTANA</h1>
             <span id="status">Conectada à rede da ONI</span>
           </div>
         </div>
         <div class="topbar-actions">
+          <!-- FASE 2: Botões de Desconectar e Relatório -->
+          <button id="btn-desconectar" class="btn-icon" title="Desconectar Sessão">🚪</button>
+          <button id="btn-relatorio" class="btn-icon" title="Relatório de Missão">📋</button>
           <button id="btn-som" class="btn-icon" title="Som ambiente">🔇</button>
           <button id="btn-mic" class="btn-icon" title="Falar">🎤</button>
         </div>
@@ -96,47 +88,29 @@
         </div>
       </div>
 
-      <div id="messages">
-        <div class="msg-row cortana">
-          <div class="msg-avatar">
-            <div class="pulse"></div>
-            <div class="core"></div>
-          </div>
-          <div class="msg-content">
-            <div class="msg-author">CORTANA</div>
-            <div class="msg-text">
-              Olá, Spartan. Sou a Cortana. Pergunte-me sobre personagens,
-              facções, tecnologia, planetas ou eventos históricos do universo
-              de Halo.
-            </div>
-          </div>
-        </div>
+      <div id="messages"></div>
+      <button id="btn-scroll-bottom" class="oculto" title="Ir para o final">↓</button>
+
+      <div id="sugestoes-prompt" class="oculto">
+        <p>Sugestões de Consulta:</p>
+        <button class="sugestao-btn" data-prompt="Quem foi o Master Chief?">Quem foi o Master Chief?</button>
+        <button class="sugestao-btn" data-prompt="O que é a Rampancy?">O que é a Rampancy?</button>
+        <button class="sugestao-btn" data-prompt="Explique a tecnologia Forerunner.">Explique a tecnologia Forerunner.</button>
       </div>
 
-      <!-- CONSOLE FAKE DA FASE CREATED -->
-      <div id="created-console" class="oculto">
-        <div id="created-logs"></div>
-      </div>
+      <div id="created-console" class="oculto"><div id="created-logs"></div></div>
 
       <div id="input-area">
         <div class="input-wrapper">
-          <textarea id="input"
-                    placeholder="Pergunte sobre a lore de Halo..."
-                    rows="1"></textarea>
-          <button id="btn-enviar" class="btn-enviar" title="Enviar">
-            <span>➤</span>
-          </button>
+          <textarea id="input" placeholder="Pergunte sobre a lore de Halo..." rows="1"></textarea>
+          <button id="btn-enviar" class="btn-enviar" title="Enviar"><span>➤</span></button>
         </div>
-        <div class="input-hint">
-          A Cortana pode cometer erros. Verifique as informações nos arquivos.
-        </div>
+        <div class="input-hint">A Cortana pode cometer erros. Verifique as informações nos arquivos.</div>
       </div>
     </main>
   </div>
 
-  <div id="sonho-overlay">
-    <div class="barra-sonho"></div>
-  </div>
+  <div id="sonho-overlay"><div class="barra-sonho"></div></div>
 
   <div id="diario-modal">
     <div class="diario-card">
@@ -154,32 +128,22 @@
         <h2>Configurações da conta</h2>
         <button id="config-fechar" class="config-fechar">✕</button>
       </header>
-
       <div class="config-body">
         <nav class="config-nav">
           <button class="config-tab ativo" data-tab="perfil">👤 Perfil</button>
           <button class="config-tab" data-tab="seguranca">🔒 Segurança</button>
           <button class="config-tab" data-tab="dados">📦 Dados</button>
+          <!-- FASE 2: Aba Memória -->
+          <button class="config-tab" data-tab="memoria">🧠 Memória</button>
           <button class="config-tab perigo" data-tab="perigo">⚠ Zona de Perigo</button>
         </nav>
-
         <div class="config-content">
-
           <div class="config-painel ativo" data-painel="perfil">
             <h3>Perfil</h3>
             <p class="config-desc">Altere como a Cortana te chama e o nome de acesso.</p>
-            <label class="config-label">
-              <span>Nome de usuário (login)</span>
-              <input type="text" id="cfg-nome" placeholder="Spartan117">
-            </label>
-            <label class="config-label">
-              <span>Apelido (como a Cortana te chama)</span>
-              <input type="text" id="cfg-apelido" placeholder="Spartan" maxlength="30">
-            </label>
-            <label class="config-label">
-              <span>Senha atual (para confirmar)</span>
-              <input type="password" id="cfg-senha-perfil" placeholder="••••••••">
-            </label>
+            <label class="config-label"><span>Nome de usuário (login)</span><input type="text" id="cfg-nome" placeholder="Spartan117"></label>
+            <label class="config-label"><span>Apelido (como a Cortana te chama)</span><input type="text" id="cfg-apelido" placeholder="Spartan" maxlength="30"></label>
+            <label class="config-label"><span>Senha atual (para confirmar)</span><input type="password" id="cfg-senha-perfil" placeholder="••••••••"></label>
             <button id="cfg-salvar-perfil" class="config-btn">Salvar alterações</button>
             <div class="config-msg" id="cfg-msg-perfil"></div>
           </div>
@@ -187,18 +151,9 @@
           <div class="config-painel" data-painel="seguranca">
             <h3>Segurança</h3>
             <p class="config-desc">Troque sua senha. Mínimo de 4 caracteres.</p>
-            <label class="config-label">
-              <span>Senha atual</span>
-              <input type="password" id="cfg-senha-atual" placeholder="••••••••">
-            </label>
-            <label class="config-label">
-              <span>Nova senha</span>
-              <input type="password" id="cfg-senha-nova" placeholder="••••••••">
-            </label>
-            <label class="config-label">
-              <span>Confirmar nova senha</span>
-              <input type="password" id="cfg-senha-confirmar" placeholder="••••••••">
-            </label>
+            <label class="config-label"><span>Senha atual</span><input type="password" id="cfg-senha-atual" placeholder="••••••••"></label>
+            <label class="config-label"><span>Nova senha</span><input type="password" id="cfg-senha-nova" placeholder="••••••••"></label>
+            <label class="config-label"><span>Confirmar nova senha</span><input type="password" id="cfg-senha-confirmar" placeholder="••••••••"></label>
             <button id="cfg-salvar-senha" class="config-btn">Trocar senha</button>
             <div class="config-msg" id="cfg-msg-senha"></div>
           </div>
@@ -211,6 +166,9 @@
               <button id="cfg-exportar-txt" class="config-btn secundario">📄 Exportar TXT</button>
             </div>
             <hr class="config-hr">
+            <p class="config-desc">Permita que a Cortana envie notificações para o seu iPhone.</p>
+            <button onclick="registrarPush()" class="config-btn" style="background: linear-gradient(135deg, #55aaff, #88ddff); color: #000;">🔔 Ativar Notificações</button>
+            <hr class="config-hr">
             <p class="config-desc">Apaga todas as conversas, mas mantém a conta e o tempo de rampancy.</p>
             <button id="cfg-limpar-conv" class="config-btn aviso">🗑 Limpar conversas</button>
             <hr class="config-hr">
@@ -218,31 +176,29 @@
             <button id="cfg-resetar" class="config-btn aviso">🔄 Resetar conta</button>
           </div>
 
+          <!-- FASE 2: Painel de Memória -->
+          <div class="config-painel" data-painel="memoria">
+            <h3>Memória da Cortana</h3>
+            <p class="config-desc">O que a Cortana aprendeu sobre você. Você pode pedir para ela esquecer algo.</p>
+            <div id="memorias-lista">
+              <p class="config-desc">Nenhuma memória registrada ainda.</p>
+            </div>
+          </div>
+
           <div class="config-painel" data-painel="perigo">
             <h3>Zona de Perigo</h3>
-            <p class="config-desc">
-              Excluir a conta apaga tudo permanentemente. Não há como recuperar.
-            </p>
-            <label class="config-label">
-              <span>Senha atual</span>
-              <input type="password" id="cfg-senha-excluir" placeholder="••••••••">
-            </label>
-            <label class="config-label">
-              <span>Digite <strong>EXCLUIR</strong> para confirmar</span>
-              <input type="text" id="cfg-confirmacao" placeholder="EXCLUIR" autocomplete="off">
-            </label>
+            <p class="config-desc">Excluir a conta apaga tudo permanentemente. Não há como recuperar.</p>
+            <label class="config-label"><span>Senha atual</span><input type="password" id="cfg-senha-excluir" placeholder="••••••••"></label>
+            <label class="config-label"><span>Digite <strong>EXCLUIR</strong> para confirmar</span><input type="text" id="cfg-confirmacao" placeholder="EXCLUIR" autocomplete="off"></label>
             <button id="cfg-excluir" class="config-btn perigo">Excluir minha conta permanentemente</button>
             <div class="config-msg" id="cfg-msg-excluir"></div>
           </div>
-
         </div>
       </div>
     </div>
   </div>
 
   <script src="/static/script.js"></script>
-  
-  <!-- PWA Service Worker -->
   <script>
     if ('serviceWorker' in navigator) {
       window.addEventListener('load', () => {
