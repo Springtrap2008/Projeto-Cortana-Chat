@@ -64,22 +64,113 @@ function initAudio() {
   if (audioCtx) return;
   try { audioCtx = new (window.AudioContext || window.webkitAudioContext)(); } catch (e) {}
 }
+// ============================================
+// SOM AMBIENTE ESTILO HALO (Expansão do Hum)
+// ============================================
+let humOsc2 = null; // Segunda camada
+let humGain2 = null;
+let pulsoInterval = null; // Para o pulso rítmico
+
 function ligarHum() {
   initAudio();
   if (!audioCtx || humOsc) return;
+  
   try {
+    // === CAMADA 1: Hum Base (Grave) ===
     humOsc = audioCtx.createOscillator();
     humGain = audioCtx.createGain();
     humOsc.type = 'sine';
+    // Frequência base: 55Hz (calma) ou 40Hz (created)
     humOsc.frequency.value = somAtual === 'created' ? 40 : 55;
-    humGain.gain.value = 0.015;
+    humGain.gain.value = 0.015; // Volume baixinho
     humOsc.connect(humGain);
     humGain.connect(audioCtx.destination);
     humOsc.start();
-  } catch (e) {}
+
+    // === CAMADA 2: Harmônico (Um tom acima, sutil) ===
+    humOsc2 = audioCtx.createOscillator();
+    humGain2 = audioCtx.createGain();
+    humOsc2.type = 'triangle'; // Timbre diferente
+    humOsc2.frequency.value = somAtual === 'created' ? 80 : 110; // Uma oitava acima
+    humGain2.gain.value = 0.008; // Ainda mais baixo
+    humOsc2.connect(humGain2);
+    humGain2.connect(audioCtx.destination);
+    humOsc2.start();
+
+    // === CAMADA 3: Pulso de Alerta (Opcional) ===
+    // Só começa se a rampancy estiver alta
+    if (rampancyAtualPct > 30) {
+        iniciarPulsoAlerta();
+    }
+
+  } catch (e) {
+    console.error("Erro ao ligar áudio:", e);
+  }
 }
+
+// Função para o pulso rítmico (alerta)
+function iniciarPulsoAlerta() {
+    if (pulsoInterval) clearInterval(pulsoInterval);
+    pulsoInterval = setInterval(() => {
+        if (!somLigado || !audioCtx) return;
+        // Toca um bipe grave e curto
+        const osc = audioCtx.createOscillator();
+        const gain = audioCtx.createGain();
+        osc.type = 'sine';
+        osc.frequency.value = 80; // Grave
+        gain.gain.setValueAtTime(0.03, audioCtx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.3);
+        osc.connect(gain);
+        gain.connect(audioCtx.destination);
+        osc.start();
+        osc.stop(audioCtx.currentTime + 0.3);
+    }, 4000); // A cada 4 segundos
+}
+
+// Atualiza o som quando a Rampancy muda
+function ajustarSomAmbiente(pct) {
+    if (!humOsc || !humOsc2) return;
+    
+    // Ajusta a frequência base conforme a rampancy
+    // Quanto maior a rampancy, mais agudo e "nervoso" fica
+    const freqBase = 55 + (pct * 0.8);
+    const freqHarmonico = 110 + (pct * 1.5);
+    
+    humOsc.frequency.setTargetAtTime(freqBase, audioCtx.currentTime, 1);
+    humOsc2.frequency.setTargetAtTime(freqHarmonico, audioCtx.currentTime, 1);
+
+    // Ajusta o volume (mais alto em rampancy alta)
+    const volBase = 0.015 + (pct * 0.0001);
+    humGain.gain.setTargetAtTime(volBase, audioCtx.currentTime, 1);
+
+    // Se passou de 30%, começa o pulso (se ainda não começou)
+    if (pct > 30 && !pulsoInterval) {
+        iniciarPulsoAlerta();
+    }
+    // Se passou de 70%, o pulso fica mais rápido
+    if (pct > 70 && pulsoInterval) {
+        clearInterval(pulsoInterval);
+        pulsoInterval = setInterval(() => {
+            if (!somLigado || !audioCtx) return;
+            const osc = audioCtx.createOscillator();
+            const gain = audioCtx.createGain();
+            osc.type = 'sawtooth'; // Timbre mais agressivo
+            osc.frequency.value = 120;
+            gain.gain.setValueAtTime(0.04, audioCtx.currentTime);
+            gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.2);
+            osc.connect(gain);
+            gain.connect(audioCtx.destination);
+            osc.start();
+            osc.stop(audioCtx.currentTime + 0.2);
+        }, 2000); // Mais rápido (2s)
+    }
+}
+
+// Desliga tudo
 function desligarHum() {
   if (humOsc) { try { humOsc.stop(); } catch (e) {} humOsc = null; humGain = null; }
+  if (humOsc2) { try { humOsc2.stop(); } catch (e) {} humOsc2 = null; humGain2 = null; }
+  if (pulsoInterval) { clearInterval(pulsoInterval); pulsoInterval = null; }
 }
 function bipe(freq = 880, dur = 0.08, vol = 0.05) {
   if (!somLigado) return;
@@ -119,6 +210,17 @@ if (btnSom) {
 // ============================================
 loginForm.addEventListener('submit', async (e) => {
   e.preventDefault();
+
+  // --- INÍCIO DO ÁUDIO AMBIENTE (desbloqueado pelo clique) ---
+  if (!somLigado) {
+    somLigado = true;
+    localStorage.setItem('cortana_som', 'on');
+    if (typeof atualizarBotaoSom === 'function') atualizarBotaoSom();
+  }
+  initAudio();
+  ligarHum();
+  // --- FIM DO ÁUDIO AMBIENTE ---
+
   loginErro.textContent = '';
   const nome = loginNome.value.trim();
   const senha = loginSenha.value;
@@ -146,6 +248,8 @@ loginForm.addEventListener('submit', async (e) => {
   } catch (err) {
     console.error('Erro no login:', err);
     loginErro.textContent = err.message || 'Erro desconhecido.';
+    // Se o login falhar, desliga o som para não ficar tocando à toa
+    if (typeof desligarHum === 'function') desligarHum();
   } finally {
     btnEntrar.disabled = false;
     btnEntrar.textContent = textoOriginal;
