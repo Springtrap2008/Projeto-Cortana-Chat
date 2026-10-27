@@ -32,7 +32,7 @@ from datetime import datetime, timedelta
 
 # --- PROTEÇÃO ---
 from flask_talisman import Talisman
-from flask_guard import FlaskGuard
+# from flask_guard import FlaskGuard
 from pywebpush import webpush, WebPushException
 import requests as req_http
 import threading
@@ -85,11 +85,11 @@ Talisman(
 # ============================================
 # PROTEÇÃO: FLASK-GUARD (Firewall)
 # ============================================
-FlaskGuard(app, 
-    enable_xss=False,  # Desativa a checagem de XSS (o Flask já cuida disso no Jinja)
-    enable_sqli=True,
-    enable_rfi=True
-)
+# # FlaskGuard(app, 
+#     enable_xss=False,  # Desativa a checagem de XSS (o Flask já cuida disso no Jinja)
+#     enable_sqli=True,
+#     enable_rfi=True
+# )
 
 # ============================================
 # CONFIGURAÇÃO DE PERSISTÊNCIA
