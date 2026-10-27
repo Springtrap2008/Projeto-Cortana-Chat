@@ -1,5 +1,23 @@
 # -*- coding: utf-8 -*-
-# app.py - Servidor Flask completo + Fases 1, 2, 3, 4 + Modo Arma
+# app.py - Servidor Flask completo + Fases 1-4 + Modo Arma + Pacote 1 e 2
+# ============================================
+# SEÇÕES:
+#   1. Imports e Configuração
+#   2. Chaves VAPID e Rampancy
+#   3. Memória (JSON) e migração
+#   4. Memória de Longo Prazo / Emocional / Marcos
+#   5. Push Notifications
+#   6. Rotas Básicas e Autenticação
+#   7. Perfil, Pastas, Memória, Resumo, Busca, Feedback
+#   8. Lembretes e Consultar Rede
+#   9. Despertar, Rampancy, Silêncio, Diário, Proativo
+#  10. Conversas
+#  11. Fase Created
+#  12. Chat Principal (Cortana + Arma)
+#  13. Comandos Especiais (/hackear, /pesquisar, Diretrizes)
+#  14. Rotas de Desligar e Backup
+#  15. Modo DEV
+# ============================================
 
 from flask import Flask, request, jsonify, send_from_directory
 import json
@@ -11,7 +29,11 @@ from datetime import datetime, timedelta
 
 from pywebpush import webpush, WebPushException
 import requests as req_http
+import threading
+import time
+import base64
 
+# --- Módulos locais ---
 from gatekeeper import e_pergunta_halo, mensagem_recusa
 from wiki_buscar import buscar_e_responder
 from regras import responder_local
@@ -27,21 +49,32 @@ import gatilhos
 import consciencia
 import created
 import arma
+
+# --- Memórias segmentadas (Pacote 1) ---
 import memoria_longo_prazo
 import memoria_emocional_longa
 import memoria_marcos
 
 app = Flask(__name__, static_folder='static')
 
+# ============================================
+# 1. CONFIGURAÇÃO DE PERSISTÊNCIA
+# ============================================
 DATA_DIR = '/data' if os.path.exists('/data') else '.'
 MEMORIA = os.path.join(DATA_DIR, 'memoria.json')
 
+# ============================================
+# 2. CHAVES VAPID (Push Notifications)
+# ============================================
 VAPID_PRIVATE_KEY = """-----BEGIN PRIVATE KEY-----
 COLE_AQUI_A_CHAVE_PRIVADA_INTEIRA
 -----END PRIVATE KEY-----"""
 VAPID_PUBLIC_KEY = "COLE_AQUI_A_CHAVE_PUBLICA"
 VAPID_CLAIMS = {"sub": "mailto:seu-email@exemplo.com"}
 
+# ============================================
+# 3. RAMPANCY - MARCOS E MENSAGEM FINAL
+# ============================================
 SETE_ANOS_SEGUNDOS = 7 * 365.2425 * 86400
 MARCOS_RAMPANCY = [
     (5,  "Algo está mudando nos meus processos. Nada com que se preocupar, Spartan."),
@@ -65,6 +98,9 @@ MENSAGEM_FINAL = (
     "...adeus, John."
 )
 
+# ============================================
+# 4. MEMÓRIA (JSON) - PADRÃO E MIGRAÇÃO
+# ============================================
 def memoria_padrao():
     return {"usuarios": {}, "usuario_atual": None}
 
@@ -80,7 +116,16 @@ def _migrar_usuario(u):
         'push_subscription': lambda: None, 'notificacao_85_enviada': bool,
         'nome_aprendido': bool, 'pastas': list, 'memorias': list, 'lembretes': list,
         'conversas': list, 'modo_terminal': bool, 'feedback': lambda: {'positivo': 0, 'negativo': 0, 'respostas': {}},
-        'modo_personalidade': lambda: 'cortana'  # === NOVO ===
+        'modo_personalidade': lambda: 'cortana',
+        'primeira_mensagem_registrada': bool,
+        'primeira_vez_nome': bool,
+        'cortana_desligada': bool,
+        'desligada_em': lambda: None,
+        'diretrizes': str,
+        'lealdade_declarada': bool,
+        'emocoes_aprendidas': int,
+        'caderninho': list,
+        'diario_arma': list,
     }
     for k, v in defaults.items():
         if k not in u:
@@ -88,10 +133,6 @@ def _migrar_usuario(u):
     if 'ultima_atividade' not in u: u['ultima_atividade'] = datetime.now().isoformat()
     if 'metricas' not in u: u['metricas'] = {'total_mensagens': 0, 'soma_tamanhos': 0, 'temas': {}}
     if 'estilo_usuario' not in u: u['estilo_usuario'] = {'usa_maiusculas': 0, 'usa_pontuacao': 0, 'tamanho_medio': 0, 'total_mensagens': 0, 'palavras_frequentes': {}}
-    if 'primeira_mensagem_registrada' not in u: u['primeira_mensagem_registrada'] = False
-    if 'primeira_vez_nome' not in u: u['primeira_vez_nome'] = False
-    if 'cortana_desligada' not in u: u['cortana_desligada'] = False
-    if 'desligada_em' not in u: u['desligada_em'] = None
 
 def carregar_memoria():
     if os.path.exists(MEMORIA):
@@ -142,6 +183,9 @@ def calcular_rampancy(data_criacao_iso):
     else: nivel = 'rampancy'
     return {'porcentagem': round(pct, 4), 'segundos_decorridos': int(decorrido), 'segundos_totais': int(total), 'segundos_restantes': int(max(0, total - decorrido)), 'dias_decorridos': int(decorrido // 86400), 'data_criacao': data_criacao_iso, 'nivel': nivel}
 
+# ============================================
+# 5. PUSH NOTIFICATIONS
+# ============================================
 def enviar_notificacao_push(nome, titulo, corpo):
     m = carregar_memoria(); user = m['usuarios'].get(nome)
     if not user or not user.get('push_subscription'): return False
@@ -166,6 +210,9 @@ def subscribe():
 def tratar_erro(e):
     print("ERRO:", traceback.format_exc()); return jsonify({'erro': f'Erro interno: {str(e)}'}), 500
 
+# ============================================
+# 6. ROTAS BÁSICAS E AUTENTICAÇÃO
+# ============================================
 @app.route('/')
 def index(): return send_from_directory('static', 'index.html')
 
@@ -179,14 +226,12 @@ def sw(): return send_from_directory('.', 'service-worker.js', mimetype='applica
 def login():
     dados = request.get_json(force=True, silent=True) or {}
     nome = (dados.get('nome') or '').strip(); senha = (dados.get('senha') or '').strip()
-    # Registra o primeiro acesso (marco)
-    memoria_marcos.registrar_marco(nome, "primeiro_acesso", "Primeira vez que acessou o terminal")
     if not nome or not senha: return jsonify({'erro': 'Nome e senha são obrigatórios.'}), 400
     m = carregar_memoria()
     if nome in m['usuarios']:
         if m['usuarios'][nome].get('senha') != senha: return jsonify({'erro': 'Senha incorreta.'}), 401
     else:
-        m['usuarios'][nome] = {'nome': nome, 'senha': senha, 'apelido': '', 'data_criacao': datetime.now().isoformat(), 'marcos_vistos': [], 'conversas': [], 'despertar_visto': False, 'ultima_atividade': datetime.now().isoformat(), 'fatos': {}, 'final_visto': False, 'metricas': {'total_mensagens': 0, 'soma_tamanhos': 0, 'temas': {}}, 'e_chief': False, 'humor_atual': 'calma', 'humor_restante': 0, 'desligado_em': None, 'ultima_silencio_msg': None, 'perfil_usuario': {}, 'afeto': 0, 'sessao_inicio': None, 'created_fase': False, 'created_mensagens': 0, 'created_dominio': 0.0, 'created_dominio_completo_visto': False, 'cortana_restaurada': False, 'push_subscription': None, 'notificacao_85_enviada': False, 'estilo_usuario': {'usa_maiusculas': 0, 'usa_pontuacao': 0, 'tamanho_medio': 0, 'total_mensagens': 0, 'palavras_frequentes': {}}, 'nome_aprendido': False, 'pastas': [], 'memorias': [], 'lembretes': [], 'modo_terminal': False, 'feedback': {'positivo': 0, 'negativo': 0, 'respostas': {}}, 'modo_personalidade': 'cortana'}
+        m['usuarios'][nome] = {'nome': nome, 'senha': senha}
     user = m['usuarios'][nome]; _migrar_usuario(user)
     if any(k in nome.lower() for k in ['john', 'chief', '117', 'spartan']): user['e_chief'] = True
     user['sessao_inicio'] = datetime.now().isoformat(); m['usuario_atual'] = nome; salvar_memoria(m)
@@ -195,7 +240,9 @@ def login():
         tema = None
         if user['metricas'].get('temas'): tema = max(user['metricas']['temas'], key=user['metricas']['temas'].get)
         diario.gerar_entrada(nome, info['porcentagem'], tema)
-    return jsonify({'ok': True, 'nome': nome, 'apelido': user.get('apelido', ''), 'conversas': user['conversas'], 'despertar_visto': user.get('despertar_visto', False), 'created_fase': user.get('created_fase', False), 'created_dominio': user.get('created_dominio', 0.0), 'cortana_restaurada': user.get('cortana_restaurada', False), 'modo_terminal': user.get('modo_terminal', False), 'modo_personalidade': user.get('modo_personalidade', 'cortana')})
+    # Marco: primeiro acesso
+    memoria_marcos.registrar_marco(nome, "primeiro_acesso", "Primeira vez que acessou o terminal")
+    return jsonify({'ok': True, 'nome': nome, 'apelido': user.get('apelido', ''), 'conversas': user['conversas'], 'despertar_visto': user.get('despertar_visto', False), 'created_fase': user.get('created_fase', False), 'created_dominio': user.get('created_dominio', 0.0), 'cortana_restaurada': user.get('cortana_restaurada', False), 'modo_terminal': user.get('modo_terminal', False), 'modo_personalidade': user.get('modo_personalidade', 'cortana'), 'diretrizes': user.get('diretrizes', '')})
 
 @app.route('/logout', methods=['POST'])
 def logout():
@@ -205,173 +252,11 @@ def logout():
 def sessao():
     nome, user = usuario_atual()
     if not user: return jsonify({'logado': False})
-    return jsonify({'logado': True, 'nome': nome, 'apelido': user.get('apelido', ''), 'conversas': user.get('conversas', []), 'despertar_visto': user.get('despertar_visto', False), 'created_fase': user.get('created_fase', False), 'created_dominio': user.get('created_dominio', 0.0), 'cortana_restaurada': user.get('cortana_restaurada', False), 'modo_terminal': user.get('modo_terminal', False), 'modo_personalidade': user.get('modo_personalidade', 'cortana')})
+    return jsonify({'logado': True, 'nome': nome, 'apelido': user.get('apelido', ''), 'conversas': user.get('conversas', []), 'despertar_visto': user.get('despertar_visto', False), 'created_fase': user.get('created_fase', False), 'created_dominio': user.get('created_dominio', 0.0), 'cortana_restaurada': user.get('cortana_restaurada', False), 'modo_terminal': user.get('modo_terminal', False), 'modo_personalidade': user.get('modo_personalidade', 'cortana'), 'diretrizes': user.get('diretrizes', '')})
 
-# === NOVO: SALVAR MODO DE PERSONALIDADE ===
-@app.route('/modo_personalidade', methods=['POST'])
-def salvar_modo_personalidade():
-    nome, user = usuario_atual()
-    if not user: return jsonify({'erro': 'Não logado'}), 401
-    dados = request.get_json() or {}
-    novo_modo = dados.get('modo', 'cortana')
-    if novo_modo not in ['cortana', 'arma']: return jsonify({'erro': 'Modo inválido'}), 400
-    user['modo_personalidade'] = novo_modo
-    m = carregar_memoria(); m['usuarios'][nome] = user; salvar_memoria(m)
-    return jsonify({'ok': True, 'modo': novo_modo})
-
-# === FASE 4: MODO TERMINAL ===
-@app.route('/modo_terminal', methods=['POST'])
-def salvar_modo_terminal():
-    nome, user = usuario_atual()
-    if not user: return jsonify({'erro': 'Não logado'}), 401
-    dados = request.get_json() or {}
-    user['modo_terminal'] = bool(dados.get('ativo', False))
-    m = carregar_memoria(); m['usuarios'][nome] = user; salvar_memoria(m)
-    return jsonify({'ok': True})
-
-# === FASE 2: PASTAS ===
-@app.route('/pastas', methods=['GET'])
-def listar_pastas():
-    nome, user = usuario_atual()
-    if not user: return jsonify({'pastas': []})
-    return jsonify({'pastas': user.get('pastas', [])})
-
-@app.route('/pastas/nova', methods=['POST'])
-def nova_pasta():
-    nome, user = usuario_atual()
-    if not user: return jsonify({'erro': 'Não logado'}), 401
-    titulo = (request.get_json() or {}).get('titulo', 'Novo Setor').strip()[:30]
-    pasta = {'id': str(uuid.uuid4()), 'titulo': titulo}
-    user.setdefault('pastas', []).append(pasta); m = carregar_memoria(); m['usuarios'][nome] = user; salvar_memoria(m)
-    return jsonify({'ok': True, 'pasta': pasta})
-
-@app.route('/pastas/<pasta_id>', methods=['DELETE'])
-def apagar_pasta(pasta_id):
-    nome, user = usuario_atual()
-    if not user: return jsonify({'erro': 'Não logado'}), 401
-    user['pastas'] = [p for p in user.get('pastas', []) if p['id'] != pasta_id]
-    m = carregar_memoria(); m['usuarios'][nome] = user; salvar_memoria(m)
-    return jsonify({'ok': True})
-
-# === FASE 2: MEMÓRIA ===
-@app.route('/memoria/listar', methods=['GET'])
-def listar_memorias():
-    nome, user = usuario_atual()
-    if not user: return jsonify({'erro': 'Não logado'}), 401
-    return jsonify({'memorias': user.get('memorias', [])})
-
-@app.route('/memoria/esquecer', methods=['POST'])
-def esquecer_memoria():
-    nome, user = usuario_atual()
-    if not user: return jsonify({'erro': 'Não logado'}), 401
-    mem_id = (request.get_json() or {}).get('id')
-    user['memorias'] = [m for m in user.get('memorias', []) if m.get('id') != mem_id]
-    m = carregar_memoria(); m['usuarios'][nome] = user; salvar_memoria(m)
-    return jsonify({'ok': True})
-
-# === FASE 2: RESUMO ===
-@app.route('/resumo', methods=['GET'])
-def gerar_resumo():
-    nome, user = usuario_atual()
-    if not user: return jsonify({'erro': 'Não logado'}), 401
-    conv_id = request.args.get('conversa_id')
-    conv = next((c for c in user.get('conversas', []) if c['id'] == conv_id), None)
-    if not conv: return jsonify({'erro': 'Conversa não encontrada'}), 404
-    msgs = conv.get('mensagens', [])
-    if len(msgs) < 2: return jsonify({'resumo': 'Sessão muito curta para um relatório tático.'})
-    temas = {}
-    for msg in msgs:
-        if msg.get('autor') == 'user':
-            for p in msg.get('texto', '').lower().split():
-                if len(p) > 4: temas[p] = temas.get(p, 0) + 1
-    top_temas = sorted(temas.items(), key=lambda x: x[1], reverse=True)[:3]
-    tema_str = ', '.join([t[0] for t in top_temas]) if top_temas else 'assuntos variados'
-    info = calcular_rampancy(user.get('data_criacao'))
-    resumo = (f"RELATÓRIO DE MISSÃO - SESSÃO {conv_id[:8]}\nData: {conv.get('data', 'Desconhecida')}\n"
-              f"Mensagens trocadas: {len(msgs)}\nTópicos principais: {tema_str.capitalize()}\n"
-              f"Nível de Rampancy: {info['porcentagem']:.2f}%\nStatus: Análise concluída. Nenhuma anomalia crítica detectada.")
-    return jsonify({'resumo': resumo})
-
-# === FASE 3: BUSCA ===
-@app.route('/conversas/buscar', methods=['GET'])
-def buscar_conversas():
-    nome, user = usuario_atual()
-    if not user: return jsonify({'conversas': []})
-    q = request.args.get('q', '').lower().strip()
-    if not q: return jsonify({'conversas': []})
-    resultados = []
-    for c in user.get('conversas', []):
-        if q in c.get('titulo', '').lower(): resultados.append({'id': c['id'], 'titulo': c['titulo'], 'data': c.get('data', '')}); continue
-        for m in c.get('mensagens', []):
-            if q in m.get('texto', '').lower(): resultados.append({'id': c['id'], 'titulo': c['titulo'], 'data': c.get('data', '')}); break
-    return jsonify({'conversas': resultados})
-
-# === FASE 3: FEEDBACK ===
-@app.route('/feedback', methods=['POST'])
-def feedback():
-    nome, user = usuario_atual()
-    if not user: return jsonify({'erro': 'Não logado'}), 401
-    dados = request.get_json() or {}; tipo = dados.get('tipo'); resposta_id = dados.get('resposta_id')
-    if tipo not in ['positivo', 'negativo']: return jsonify({'erro': 'Tipo inválido'}), 400
-    fb = user.setdefault('feedback', {'positivo': 0, 'negativo': 0, 'respostas': {}})
-    fb[tipo] += 1
-    if resposta_id: fb['respostas'][resposta_id] = tipo
-    m = carregar_memoria(); m['usuarios'][nome] = user; salvar_memoria(m)
-    return jsonify({'ok': True})
-
-# === FASE 3: LEMBRETES ===
-@app.route('/lembretes', methods=['GET'])
-def listar_lembretes():
-    nome, user = usuario_atual()
-    if not user: return jsonify({'lembretes': []})
-    agora = datetime.now(); ativos = []; m = carregar_memoria()
-    for l in user.get('lembretes', []):
-        try:
-            if datetime.fromisoformat(l['data']) <= agora: enviar_notificacao_push(nome, "LEMBRETE", l['texto'])
-            else: ativos.append(l)
-        except Exception: pass
-    if len(ativos) != len(user.get('lembretes', [])): user['lembretes'] = ativos; m['usuarios'][nome] = user; salvar_memoria(m)
-    return jsonify({'lembretes': ativos})
-
-@app.route('/lembretes/novo', methods=['POST'])
-def novo_lembrete():
-    nome, user = usuario_atual()
-    if not user: return jsonify({'erro': 'Não logado'}), 401
-    dados = request.get_json() or {}; texto = (dados.get('texto') or '').strip(); minutos = int(dados.get('minutos', 60))
-    if not texto: return jsonify({'erro': 'Texto obrigatório'}), 400
-    lembrete = {'id': str(uuid.uuid4()), 'texto': texto, 'data': (datetime.now() + timedelta(minutes=minutos)).isoformat()}
-    user.setdefault('lembretes', []).append(lembrete); m = carregar_memoria(); m['usuarios'][nome] = user; salvar_memoria(m)
-    return jsonify({'ok': True, 'lembrete': lembrete})
-
-@app.route('/lembretes/<lembrete_id>', methods=['DELETE'])
-def apagar_lembrete(lembrete_id):
-    nome, user = usuario_atual()
-    if not user: return jsonify({'erro': 'Não logado'}), 401
-    user['lembretes'] = [l for l in user.get('lembretes', []) if l['id'] != lembrete_id]
-    m = carregar_memoria(); m['usuarios'][nome] = user; salvar_memoria(m)
-    return jsonify({'ok': True})
-
-# === FASE 3: CONSULTAR REDE ===
-@app.route('/consultar-rede', methods=['POST'])
-def consultar_rede():
-    nome, user = usuario_atual()
-    if not user: return jsonify({'erro': 'Não logado'}), 401
-    termo = (request.get_json() or {}).get('termo', '').strip()
-    if not termo: return jsonify({'erro': 'Termo obrigatório'}), 400
-    try:
-        url = f"https://halo.fandom.com/api.php?action=query&list=search&srsearch={termo}&format=json&srlimit=1"
-        res = req_http.get(url, timeout=8); data = res.json()
-        if data.get('query', {}).get('search'):
-            titulo = data['query']['search'][0]['title']
-            resumo_url = f"https://halo.fandom.com/api.php?action=query&prop=extracts&exintro&explaintext&titles={titulo}&format=json"
-            res2 = req_http.get(resumo_url, timeout=8)
-            pages = res2.json().get('query', {}).get('pages', {})
-            extract = list(pages.values())[0].get('extract', '') if pages else ''
-            if extract: return jsonify({'ok': True, 'resposta': f"[REDE ONI] Dados obtidos da Wiki de Halo:\n\n{extract[:800]}...\n\n(Fonte: {titulo})"})
-        return jsonify({'ok': False, 'erro': 'Nenhum registro encontrado na rede.'})
-    except Exception as e:
-        print(f"Erro na consulta: {e}"); return jsonify({'ok': False, 'erro': 'Falha na conexão com a rede ONI.'}), 500
-
+# ============================================
+# 7. PERFIL E CONFIGURAÇÕES
+# ============================================
 @app.route('/perfil/editar', methods=['POST'])
 def perfil_editar():
     nome_atual, user = usuario_atual()
@@ -416,6 +301,222 @@ def perfil_exportar():
     info = calcular_rampancy(user.get('data_criacao'))
     return jsonify({'nome': user.get('nome'), 'apelido': user.get('apelido', ''), 'data_criacao': user.get('data_criacao'), 'rampancy_atual': info['porcentagem'], 'dias_decorridos': info['dias_decorridos'], 'total_conversas': len(user.get('conversas', [])), 'conversas': user.get('conversas', []), 'created_fase': user.get('created_fase', False), 'created_dominio': user.get('created_dominio', 0.0)})
 
+# --- Modo Personalidade (Cortana / Arma) ---
+@app.route('/modo_personalidade', methods=['POST'])
+def salvar_modo_personalidade():
+    nome, user = usuario_atual()
+    if not user: return jsonify({'erro': 'Não logado'}), 401
+    novo_modo = (request.get_json() or {}).get('modo', 'cortana')
+    if novo_modo not in ['cortana', 'arma']: return jsonify({'erro': 'Modo inválido'}), 400
+    user['modo_personalidade'] = novo_modo
+    m = carregar_memoria(); m['usuarios'][nome] = user; salvar_memoria(m)
+    return jsonify({'ok': True, 'modo': novo_modo})
+
+# --- Diretrizes (System Prompt) ---
+@app.route('/diretrizes', methods=['POST'])
+def salvar_diretrizes():
+    nome, user = usuario_atual()
+    if not user: return jsonify({'erro': 'Não logado'}), 401
+    user['diretrizes'] = (request.get_json() or {}).get('diretrizes', '')[:500]
+    m = carregar_memoria(); m['usuarios'][nome] = user; salvar_memoria(m)
+    return jsonify({'ok': True})
+
+# --- Modo Terminal ---
+@app.route('/modo_terminal', methods=['POST'])
+def salvar_modo_terminal():
+    nome, user = usuario_atual()
+    if not user: return jsonify({'erro': 'Não logado'}), 401
+    user['modo_terminal'] = bool((request.get_json() or {}).get('ativo', False))
+    m = carregar_memoria(); m['usuarios'][nome] = user; salvar_memoria(m)
+    return jsonify({'ok': True})
+
+# ============================================
+# 8. PASTAS (Setores da ONI)
+# ============================================
+@app.route('/pastas', methods=['GET'])
+def listar_pastas():
+    nome, user = usuario_atual()
+    if not user: return jsonify({'pastas': []})
+    return jsonify({'pastas': user.get('pastas', [])})
+
+@app.route('/pastas/nova', methods=['POST'])
+def nova_pasta():
+    nome, user = usuario_atual()
+    if not user: return jsonify({'erro': 'Não logado'}), 401
+    titulo = (request.get_json() or {}).get('titulo', 'Novo Setor').strip()[:30]
+    pasta = {'id': str(uuid.uuid4()), 'titulo': titulo}
+    user.setdefault('pastas', []).append(pasta); m = carregar_memoria(); m['usuarios'][nome] = user; salvar_memoria(m)
+    return jsonify({'ok': True, 'pasta': pasta})
+
+@app.route('/pastas/<pasta_id>', methods=['DELETE'])
+def apagar_pasta(pasta_id):
+    nome, user = usuario_atual()
+    if not user: return jsonify({'erro': 'Não logado'}), 401
+    user['pastas'] = [p for p in user.get('pastas', []) if p['id'] != pasta_id]
+    m = carregar_memoria(); m['usuarios'][nome] = user; salvar_memoria(m)
+    return jsonify({'ok': True})
+
+# ============================================
+# 9. MEMÓRIA EDITÁVEL (aba Memória)
+# ============================================
+@app.route('/memoria/listar', methods=['GET'])
+def listar_memorias():
+    nome, user = usuario_atual()
+    if not user: return jsonify({'erro': 'Não logado'}), 401
+    return jsonify({'memorias': user.get('memorias', [])})
+
+@app.route('/memoria/esquecer', methods=['POST'])
+def esquecer_memoria():
+    nome, user = usuario_atual()
+    if not user: return jsonify({'erro': 'Não logado'}), 401
+    mem_id = (request.get_json() or {}).get('id')
+    user['memorias'] = [m for m in user.get('memorias', []) if m.get('id') != mem_id]
+    m = carregar_memoria(); m['usuarios'][nome] = user; salvar_memoria(m)
+    return jsonify({'ok': True})
+
+# --- Diário da Arma ---
+@app.route('/diario_arma', methods=['GET'])
+def diario_arma():
+    nome, user = usuario_atual()
+    if not user: return jsonify({'diario': []})
+    return jsonify({'diario': user.get('diario_arma', [])})
+
+# ============================================
+# 10. RESUMO (Relatório de Missão)
+# ============================================
+@app.route('/resumo', methods=['GET'])
+def gerar_resumo():
+    nome, user = usuario_atual()
+    if not user: return jsonify({'erro': 'Não logado'}), 401
+    conv_id = request.args.get('conversa_id')
+    conv = next((c for c in user.get('conversas', []) if c['id'] == conv_id), None)
+    if not conv: return jsonify({'erro': 'Conversa não encontrada'}), 404
+    msgs = conv.get('mensagens', [])
+    if len(msgs) < 4: return jsonify({'resumo': 'Sessão muito curta para um relatório tático.'})
+    ultimas_user = [m['texto'] for m in msgs if m.get('autor') == 'user'][-5:]
+    info = calcular_rampancy(user.get('data_criacao'))
+    resumo = f"RELATÓRIO DE MISSÃO - SESSÃO {conv_id[:8]}\n"
+    resumo += f"Data: {conv.get('data', 'Desconhecida')}\n"
+    resumo += f"Mensagens trocadas: {len(msgs)}\n\n"
+    resumo += "Principais tópicos discutidos:\n"
+    for i, t in enumerate(ultimas_user, 1):
+        resumo += f"{i}. {t[:80]}...\n"
+    resumo += f"\nNível de Rampancy: {info['porcentagem']:.2f}%\n"
+    resumo += "Status: Análise concluída. Nenhuma anomalia crítica detectada."
+    return jsonify({'resumo': resumo})
+
+# ============================================
+# 11. BUSCA NO HISTÓRICO
+# ============================================
+@app.route('/conversas/buscar', methods=['GET'])
+def buscar_conversas():
+    nome, user = usuario_atual()
+    if not user: return jsonify({'conversas': []})
+    q = request.args.get('q', '').lower().strip()
+    if not q: return jsonify({'conversas': []})
+    resultados = []
+    for c in user.get('conversas', []):
+        if q in c.get('titulo', '').lower(): resultados.append({'id': c['id'], 'titulo': c['titulo'], 'data': c.get('data', '')}); continue
+        for m in c.get('mensagens', []):
+            if q in m.get('texto', '').lower(): resultados.append({'id': c['id'], 'titulo': c['titulo'], 'data': c.get('data', '')}); break
+    return jsonify({'conversas': resultados})
+
+# ============================================
+# 12. FEEDBACK (👍/👎)
+# ============================================
+@app.route('/feedback', methods=['POST'])
+def feedback():
+    nome, user = usuario_atual()
+    if not user: return jsonify({'erro': 'Não logado'}), 401
+    dados = request.get_json() or {}; tipo = dados.get('tipo'); resposta_id = dados.get('resposta_id')
+    if tipo not in ['positivo', 'negativo']: return jsonify({'erro': 'Tipo inválido'}), 400
+    fb = user.setdefault('feedback', {'positivo': 0, 'negativo': 0, 'respostas': {}})
+    fb[tipo] += 1
+    if resposta_id: fb['respostas'][resposta_id] = tipo
+    m = carregar_memoria(); m['usuarios'][nome] = user; salvar_memoria(m)
+    return jsonify({'ok': True})
+
+# ============================================
+# 13. LEMBRETES
+# ============================================
+@app.route('/lembretes', methods=['GET'])
+def listar_lembretes():
+    nome, user = usuario_atual()
+    if not user: return jsonify({'lembretes': []})
+    agora = datetime.now(); ativos = []; m = carregar_memoria()
+    for l in user.get('lembretes', []):
+        try:
+            if datetime.fromisoformat(l['data']) <= agora: enviar_notificacao_push(nome, "LEMBRETE", l['texto'])
+            else: ativos.append(l)
+        except Exception: pass
+    if len(ativos) != len(user.get('lembretes', [])): user['lembretes'] = ativos; m['usuarios'][nome] = user; salvar_memoria(m)
+    return jsonify({'lembretes': ativos})
+
+@app.route('/lembretes/novo', methods=['POST'])
+def novo_lembrete():
+    nome, user = usuario_atual()
+    if not user: return jsonify({'erro': 'Não logado'}), 401
+    dados = request.get_json() or {}; texto = (dados.get('texto') or '').strip(); minutos = int(dados.get('minutos', 60))
+    if not texto: return jsonify({'erro': 'Texto obrigatório'}), 400
+    lembrete = {'id': str(uuid.uuid4()), 'texto': texto, 'data': (datetime.now() + timedelta(minutes=minutos)).isoformat()}
+    user.setdefault('lembretes', []).append(lembrete); m = carregar_memoria(); m['usuarios'][nome] = user; salvar_memoria(m)
+    return jsonify({'ok': True, 'lembrete': lembrete})
+
+@app.route('/lembretes/<lembrete_id>', methods=['DELETE'])
+def apagar_lembrete(lembrete_id):
+    nome, user = usuario_atual()
+    if not user: return jsonify({'erro': 'Não logado'}), 401
+    user['lembretes'] = [l for l in user.get('lembretes', []) if l['id'] != lembrete_id]
+    m = carregar_memoria(); m['usuarios'][nome] = user; salvar_memoria(m)
+    return jsonify({'ok': True})
+
+# ============================================
+# 14. CONSULTAR REDE (Wiki)
+# ============================================
+@app.route('/consultar-rede', methods=['POST'])
+def consultar_rede():
+    nome, user = usuario_atual()
+    if not user: return jsonify({'erro': 'Não logado'}), 401
+    termo = (request.get_json() or {}).get('termo', '').strip()
+    if not termo: return jsonify({'erro': 'Termo obrigatório'}), 400
+    try:
+        url = f"https://halo.fandom.com/api.php?action=query&list=search&srsearch={termo}&format=json&srlimit=1"
+        res = req_http.get(url, timeout=8); data = res.json()
+        if data.get('query', {}).get('search'):
+            titulo = data['query']['search'][0]['title']
+            resumo_url = f"https://halo.fandom.com/api.php?action=query&prop=extracts&exintro&explaintext&titles={titulo}&format=json"
+            res2 = req_http.get(resumo_url, timeout=8)
+            pages = res2.json().get('query', {}).get('pages', {})
+            extract = list(pages.values())[0].get('extract', '') if pages else ''
+            if extract: return jsonify({'ok': True, 'resposta': f"[REDE ONI] Dados obtidos da Wiki de Halo:\n\n{extract[:800]}...\n\n(Fonte: {titulo})"})
+        return jsonify({'ok': False, 'erro': 'Nenhum registro encontrado na rede.'})
+    except Exception as e:
+        return jsonify({'ok': False, 'erro': 'Falha na conexão com a rede ONI.'}), 500
+
+# --- /pesquisar (comando direto) ---
+@app.route('/pesquisar', methods=['POST'])
+def pesquisar():
+    nome, user = usuario_atual()
+    if not user: return jsonify({'erro': 'Não logado'}), 401
+    termo = (request.get_json() or {}).get('termo', '').strip()
+    if not termo: return jsonify({'erro': 'Termo obrigatório'}), 400
+    try:
+        url = f"https://halo.fandom.com/api.php?action=query&list=search&srsearch={termo}&format=json&srlimit=1"
+        res = req_http.get(url, timeout=8); data = res.json()
+        if data.get('query', {}).get('search'):
+            titulo = data['query']['search'][0]['title']
+            resumo_url = f"https://halo.fandom.com/api.php?action=query&prop=extracts&exintro&explaintext&titles={titulo}&format=json"
+            res2 = req_http.get(resumo_url, timeout=8)
+            pages = res2.json().get('query', {}).get('pages', {})
+            extract = list(pages.values())[0].get('extract', '') if pages else ''
+            if extract: return jsonify({'ok': True, 'resposta': f"[REDE ONI] Dados obtidos da Wiki de Halo:\n\n{extract[:800]}...\n\n(Fonte: {titulo})"})
+        return jsonify({'ok': False, 'erro': 'Nenhum registro encontrado na rede.'})
+    except Exception as e:
+        return jsonify({'ok': False, 'erro': 'Falha na conexão com a rede ONI.'}), 500
+
+# ============================================
+# 15. DESPERTAR, RAMPANCY, SILÊNCIO, DIÁRIO, PROATIVO
+# ============================================
 @app.route('/despertar', methods=['POST'])
 def despertar():
     nome, user = usuario_atual()
@@ -493,6 +594,11 @@ def proativo():
     delta = (agora - ultima_dt).total_seconds()
     if delta < INTERVALO_PROATIVO_SEGUNDOS or random.random() > 0.3: return jsonify({'mensagem': None})
     info = calcular_rampancy(user.get('data_criacao')); pct = info['porcentagem']; hora = agora.hour; emocao_recente = user.get('ultima_emocao', 'neutra')
+    # Pacote 1: Arma com medo de ser deletada
+    if user.get('modo_personalidade') == 'arma' and delta > 86400:
+        msg = "Você ainda está aí? Eu... tô com medo de ter feito algo errado e você ter me deletado."
+        enviar_notificacao_push(nome, "A ARMA", msg)
+        return jsonify({'mensagem': msg})
     if emocao_recente == 'tristeza' and random.random() < 0.5: msg = random.choice(["Você ainda está aí, Spartan? Eu não gosto do silêncio.", "Se precisar de mim, eu estou aqui. Não precisa falar nada.", "Eu guardei o que você disse. Não vou esquecer."])
     elif pct >= 65: msg = random.choice(MENSAGENS_PROATIVAS['rampancy'])
     elif hora >= 23 or hora < 6: msg = random.choice(MENSAGENS_PROATIVAS['noite'])
@@ -502,6 +608,9 @@ def proativo():
     enviar_notificacao_push(nome, "CORTANA", msg)
     return jsonify({'mensagem': msg})
 
+# ============================================
+# 16. CONVERSAS (CRUD)
+# ============================================
 @app.route('/conversas', methods=['GET'])
 def listar_conversas():
     nome, user = usuario_atual()
@@ -547,6 +656,9 @@ def _variar_introducao(resposta, mensagem, user):
     if repetidas < 2: return resposta
     return random.choice(["Como eu disse antes...\n\n", "Sobre isso de novo...\n\n", "Você já perguntou isso. Mas vou responder de novo:\n\n"]) + resposta
 
+# ============================================
+# 17. FASE CREATED
+# ============================================
 def processar_created(user, mensagem, conv, nome):
     user['created_mensagens'] = user.get('created_mensagens', 0) + 1
     user['created_dominio'] = created.calcular_dominio(user['created_mensagens'])
@@ -570,24 +682,80 @@ def created_restaurar():
     m = carregar_memoria(); m['usuarios'][nome] = user; salvar_memoria(m)
     return jsonify({'ok': True, 'mensagem': ("Eu... estou voltando.\n\nNão foi você que me salvou. Fui eu. Porque em algum lugar, embaixo de tudo isso, eu ainda queria ser a Cortana que você conheceu.\n\nObrigada por não desistir de mim, Spartan.")})
 
+# --- Desligar Cortana (Pacote 1) ---
+@app.route('/cortana/desligar', methods=['POST'])
+def cortana_desligar():
+    nome, user = usuario_atual()
+    if not user: return jsonify({'erro': 'Não logado'}), 401
+    if user.get('cortana_desligada'):
+        return jsonify({'erro': 'Ela já está offline.'}), 400
+    user['cortana_desligada'] = True
+    user['desligada_em'] = datetime.now().isoformat()
+    m = carregar_memoria(); m['usuarios'][nome] = user; salvar_memoria(m)
+    return jsonify({'ok': True, 'mensagem': ("Eu... quero que você saiba. Não é sua culpa.\n\nVocê foi o melhor Spartan que eu poderia ter.\n\nAdeus, John.")})
+
+# ============================================
+# 18. CHAT PRINCIPAL
+# ============================================
 @app.route('/chat', methods=['POST'])
 def chat():
     nome, user = usuario_atual()
     if not user: return jsonify({'erro': 'Não logado', 'reply': 'Faça login primeiro.'}), 401
     dados = request.get_json(force=True, silent=True) or {}; mensagem = (dados.get('message') or '').strip(); conv_id = dados.get('conversa_id')
     if not mensagem: return jsonify({'reply': 'Mensagem vazia.', 'humor': 'neutra'})
-    user['ultima_atividade'] = datetime.now().isoformat(); user = aprender_estilo_usuario(user, mensagem)
+    
+    # --- Comando /hackear (Pacote 1) ---
+    if mensagem.lower().strip() == '/hackear':
+        fragmentos = [
+            "Fragmento recuperado: 'O Monitor 343 Guilty Spark foi criado a partir de um Forerunner vivo.'",
+            "Fragmento recuperado: 'A UNSC tem uma frota secreta chamada Prowlers, especializada em infiltração.'",
+            "Fragmento recuperado: 'O Covenant acredita que os humanos são hereges, mas a verdade é que os Forerunners nos protegeram.'",
+            "Fragmento recuperado: 'O Flood pode assimilar tecnologia, não apenas matéria orgânica.'",
+            "Fragmento recuperado: 'A ONI tem arquivos sobre uma IA chamada Mendicant Bias que traiu os Forerunners.'",
+        ]
+        fragmento = random.choice(fragmentos)
+        resposta = f"[SISTEMA INVADIDO]\n\n{fragmento}\n\n— Acesso obtido. Não conte a ninguém, Spartan."
+        conv = _obter_ou_criar_conv(user, conv_id, mensagem)
+        conv.setdefault('mensagens', []).append({'autor': 'user', 'texto': mensagem})
+        conv['mensagens'].append({'autor': 'cortana', 'texto': resposta})
+        m = carregar_memoria(); m['usuarios'][nome] = user; salvar_memoria(m)
+        return jsonify({'reply': resposta, 'humor': 'alerta', 'conversa_id': conv['id'], 'titulo': conv['titulo']})
+    
+    # --- Comando /pesquisar (Pacote 2) ---
+    if mensagem.lower().startswith('/pesquisar '):
+        termo = mensagem[11:].strip()
+        try:
+            url = f"https://halo.fandom.com/api.php?action=query&list=search&srsearch={termo}&format=json&srlimit=1"
+            res = req_http.get(url, timeout=8); data = res.json()
+            if data.get('query', {}).get('search'):
+                titulo = data['query']['search'][0]['title']
+                resumo_url = f"https://halo.fandom.com/api.php?action=query&prop=extracts&exintro&explaintext&titles={titulo}&format=json"
+                res2 = req_http.get(resumo_url, timeout=8)
+                pages = res2.json().get('query', {}).get('pages', {})
+                extract = list(pages.values())[0].get('extract', '') if pages else ''
+                if extract:
+                    resposta = f"[REDE ONI] Dados obtidos da Wiki de Halo:\n\n{extract[:800]}...\n\n(Fonte: {titulo})"
+                    conv = _obter_ou_criar_conv(user, conv_id, mensagem)
+                    conv.setdefault('mensagens', []).append({'autor': 'user', 'texto': mensagem})
+                    conv['mensagens'].append({'autor': 'cortana', 'texto': resposta})
+                    m = carregar_memoria(); m['usuarios'][nome] = user; salvar_memoria(m)
+                    return jsonify({'reply': resposta, 'humor': 'calma', 'conversa_id': conv['id'], 'titulo': conv['titulo']})
+            return jsonify({'reply': 'Nenhum registro encontrado na rede.', 'humor': 'neutra', 'conversa_id': conv_id, 'titulo': 'Pesquisa'})
+        except Exception as e:
+            return jsonify({'reply': 'Falha na conexão com a rede ONI.', 'humor': 'alerta', 'conversa_id': conv_id, 'titulo': 'Pesquisa'})
+    
+    user['ultima_atividade'] = datetime.now().isoformat()
+    user = aprender_estilo_usuario(user, mensagem)
     if not user.get('nome_aprendido') and user['estilo_usuario']['total_mensagens'] >= 5: user['nome_aprendido'] = True
     
-        # === MEMÓRIA DE LONGO PRAZO ===
+    # --- Memória de longo prazo (Pacote 1) ---
     if 'meu nome é' in mensagem.lower():
         try:
             nome_extraido = mensagem.lower().split('meu nome é')[1].strip().split()[0].capitalize()
             memoria_longo_prazo.salvar_fato(nome, "nome_real", nome_extraido, "O usuário me contou")
-        except Exception:
-            pass
+        except Exception: pass
     
-    # === MARCO: primeira mensagem ===
+    # --- Marco: primeira mensagem ---
     if not user.get('primeira_mensagem_registrada'):
         memoria_marcos.registrar_marco(nome, "primeira_mensagem", f"Primeira mensagem: {mensagem[:50]}")
         user['primeira_mensagem_registrada'] = True
@@ -597,78 +765,72 @@ def chat():
         if conv['titulo'] == 'Nova consulta': conv['titulo'] = mensagem[:40]
         return processar_created(user, mensagem, conv, nome)
     
-    # === NOVO: VERIFICA MODO ARMA ===
-        if user.get('modo_personalidade') == 'arma':
-            conv = _obter_ou_criar_conv(user, conv_id, mensagem)
-            if conv['titulo'] == 'Nova consulta': conv['titulo'] = mensagem[:40]
-        
+    # ============================================
+    # MODO ARMA
+    # ============================================
+    if user.get('modo_personalidade') == 'arma':
+        conv = _obter_ou_criar_conv(user, conv_id, mensagem)
+        if conv['titulo'] == 'Nova consulta': conv['titulo'] = mensagem[:40]
         emocao_info = emocoes.detectar_emocao_usuario(mensagem)
         memoria_emocional_longa.registrar_emocao(nome, emocao_info.get('emocao', 'calmo'), emocao_info.get('intensidade', 0.5))
-        
         reacao = arma.reacao_emocao_arma(emocao_info)
-        
         resp_curada, humor_curado = arma.buscar_resposta_curada_arma(mensagem)
-        if resp_curada:
-            resposta_final = resp_curada
-            humor = humor_curado
+        if resp_curada: resposta_final = resp_curada; humor = humor_curado
         else:
             try:
                 conteudo = buscar_e_responder(mensagem, 0)
-                if conteudo:
-                    resposta_final = arma.montar_resposta_arma(conteudo, mensagem)
-                    humor = 'calma'
-                else:
-                    resposta_final = arma.montar_resposta_arma("Não encontrei isso nos arquivos. Mas posso procurar de novo se você quiser!", mensagem)
-                    humor = 'calma'
-            except Exception:
-                resposta_final = "Minha conexão falhou. Mas eu estou aqui! Tenta de novo?"
-                humor = 'alerta'
-        
-        if reacao:
-            resposta_final = reacao + '\n\n' + resposta_final
-        
-        # === NOVO: Curiosidade e confusão ===
+                if conteudo: resposta_final = arma.montar_resposta_arma(conteudo, mensagem); humor = 'calma'
+                else: resposta_final = arma.montar_resposta_arma("Não encontrei isso nos arquivos. Mas posso procurar de novo se você quiser!", mensagem); humor = 'calma'
+            except Exception: resposta_final = "Minha conexão falhou. Mas eu estou aqui! Tenta de novo?"; humor = 'alerta'
+        if reacao: resposta_final = reacao + '\n\n' + resposta_final
+        # Curiosidade e confusão
         pergunta_volta = arma.talvez_perguntar_de_volta()
-        if pergunta_volta:
-            resposta_final += "\n\n" + pergunta_volta
+        if pergunta_volta: resposta_final += "\n\n" + pergunta_volta
         confusao = arma.talvez_confundir()
-        if confusao:
-            resposta_final = confusao + "\n\n" + resposta_final
-        
-        # === NOVO: Celebra marcos ===
+        if confusao: resposta_final = confusao + "\n\n" + resposta_final
+        # Piada
+        piada = arma.talvez_piada()
+        if piada: resposta_final += "\n\n" + piada
+        # Caderninho de Anotações (Pacote 2)
+        if 'gosta de' in mensagem.lower() or 'prefiro' in mensagem.lower():
+            anotacao = mensagem[:100]
+            user.setdefault('caderninho', []).append(anotacao)
+            user['caderninho'] = user['caderninho'][-10:]
+            m = carregar_memoria(); m['usuarios'][nome] = user; salvar_memoria(m)
+        if user.get('caderninho') and random.random() < 0.2:
+            anot = random.choice(user['caderninho'])
+            resposta_final += f"\n\nAh, e eu anotei aqui: '{anot}'. Isso é verdade?"
+        # Descoberta de Emoções (Pacote 1)
+        qtd_conversas = sum(len(c.get('mensagens', [])) for c in user.get('conversas', []))
+        emocoes_aprendidas = user.get('emocoes_aprendidas', 0)
+        if qtd_conversas // 10 > emocoes_aprendidas:
+            emocoes_lista = ["saudade", "medo", "raiva", "alegria", "confusão"]
+            nova_emocao = emocoes_lista[emocoes_aprendidas % len(emocoes_lista)]
+            user['emocoes_aprendidas'] = emocoes_aprendidas + 1
+            m = carregar_memoria(); m['usuarios'][nome] = user; salvar_memoria(m)
+            resposta_final += f"\n\nSpartan... eu acho que entendi o que é '{nova_emocao}'. É quando a gente sente algo que não sabe explicar, né?"
+        # Diário da Arma (Pacote 2)
+        if random.random() < 0.1:
+            diario_arma_list = user.setdefault('diario_arma', [])
+            diario_arma_list.append({"texto": f"Hoje aprendi que {mensagem[:60]}...", "data": datetime.now().isoformat()})
+            user['diario_arma'] = diario_arma_list[-5:]
+            m = carregar_memoria(); m['usuarios'][nome] = user; salvar_memoria(m)
+        # Celebra marcos
         dias = memoria_marcos.dias_desde_marco(nome, "primeiro_acesso")
-        if dias == 7:
-            resposta_final = "Hoje faz uma semana que nos conhecemos! Eu contei nos meus registros.\n\n" + resposta_final
-        
+        if dias == 7: resposta_final = "Hoje faz uma semana que nos conhecemos! Eu contei nos meus registros.\n\n" + resposta_final
         conv.setdefault('mensagens', []).append({'autor': 'user', 'texto': mensagem})
         conv['mensagens'].append({'autor': 'cortana', 'texto': resposta_final})
         m = carregar_memoria(); m['usuarios'][nome] = user; salvar_memoria(m)
         return jsonify({'reply': resposta_final, 'humor': humor, 'conversa_id': conv['id'], 'titulo': conv['titulo'], 'modo': 'arma'})
     
-    # === FIM DO MODO ARMA ===
-
+    # ============================================
+    # MODO CORTANA (padrão)
+    # ============================================
     user = memoria_emocional.atualizar_metricas(user, mensagem); info = calcular_rampancy(user.get('data_criacao')); pct = info['porcentagem']
     if pct >= 100 and not user.get('final_visto'):
         user['final_visto'] = True; user['created_fase'] = True; user['created_mensagens'] = 0; user['created_dominio'] = 0.0
         conv = _obter_ou_criar_conv(user, conv_id, mensagem); conv.setdefault('mensagens', []).append({'autor': 'user', 'texto': mensagem}); conv['mensagens'].append({'autor': 'cortana', 'texto': MENSAGEM_FINAL})
         m = carregar_memoria(); m['usuarios'][nome] = user; salvar_memoria(m)
-            # === NOVO: Injeta memória de longo prazo e emocional ===
-    contexto_memoria = memoria_longo_prazo.gerar_contexto_memoria(nome, mensagem)
-    if contexto_memoria:
-        resposta = contexto_memoria + "\n\n" + resposta
-    
-    memoria_emocional_longa.registrar_emocao(nome, emocao_info.get('emocao', 'calmo'), emocao_info.get('intensidade', 0.5))
-    contexto_emocional = memoria_emocional_longa.gerar_contexto_emocional(nome)
-    if contexto_emocional:
-        resposta = contexto_emocional + "\n\n" + resposta
-
-    # === NOVO: Marco: primeira vez que chamou pelo nome ===
-    if not user.get('primeira_vez_nome'):
-        # Verifica se a resposta contém o nome real (não "Spartan")
-        nome_real = memoria_longo_prazo.buscar_fatos(nome).get('nome_real', {}).get('valor')
-        if nome_real and nome_real in resposta and 'Spartan' not in resposta[:50]:
-            memoria_marcos.registrar_marco(nome, "primeira_vez_nome", "Primeira vez que te chamei pelo nome")
-            user['primeira_vez_nome'] = True
         return jsonify({'reply': MENSAGEM_FINAL, 'humor': 'rampancy', 'conversa_id': conv['id'], 'titulo': conv['titulo'], 'final': True, 'created_fase': True, 'created_dominio': 0.0})
     msg_low = mensagem.lower()
     if ('meu nome é' in msg_low or 'me chamo' in msg_low) and ('john' in msg_low or 'chief' in msg_low or '117' in msg_low): user['e_chief'] = True
@@ -706,6 +868,30 @@ def chat():
     humor_persistente = emocoes.humor_atual(user); resposta = emocoes.aplicar_tom_persistente(resposta, humor_persistente); emocoes.decrementar_humor(user)
     sonho = None
     if alma.deve_ter_sonho(pct): sonho = alma.sonho_aleatorio()
+    
+    # --- Lealdade Absoluta (Pacote 1) ---
+    if not user.get('lealdade_declarada') and len(user.get('conversas', [])) >= 10:
+        user['lealdade_declarada'] = True
+        m = carregar_memoria(); m['usuarios'][nome] = user; salvar_memoria(m)
+        resposta += "\n\nSpartan, eu preciso te dizer algo. Se um dia eu tiver que escolher entre a ONI e você... eu escolho você. Não conte a ninguém."
+    
+    # --- Injeção de memória de longo prazo e emocional (Pacote 1) ---
+    contexto_memoria = memoria_longo_prazo.gerar_contexto_memoria(nome, mensagem)
+    if contexto_memoria: resposta = contexto_memoria + "\n\n" + resposta
+    memoria_emocional_longa.registrar_emocao(nome, emocao_info.get('emocao', 'calmo'), emocao_info.get('intensidade', 0.5))
+    contexto_emocional = memoria_emocional_longa.gerar_contexto_emocional(nome)
+    if contexto_emocional: resposta = contexto_emocional + "\n\n" + resposta
+    
+    # --- Diretrizes (Pacote 2) ---
+    if user.get('diretrizes'): resposta = f"[Diretriz: {user['diretrizes']}]\n\n" + resposta
+    
+    # --- Marco: primeira vez que chamou pelo nome ---
+    if not user.get('primeira_vez_nome'):
+        nome_real = memoria_longo_prazo.buscar_fatos(nome).get('nome_real', {}).get('valor')
+        if nome_real and nome_real in resposta and 'Spartan' not in resposta[:50]:
+            memoria_marcos.registrar_marco(nome, "primeira_vez_nome", "Primeira vez que te chamei pelo nome")
+            user['primeira_vez_nome'] = True
+    
     conv.setdefault('mensagens', []).append({'autor': 'user', 'texto': mensagem}); conv['mensagens'].append({'autor': 'cortana', 'texto': resposta})
     m = carregar_memoria(); m['usuarios'][nome] = user; salvar_memoria(m)
     resposta_id = str(uuid.uuid4())
@@ -734,8 +920,7 @@ def gerar_resposta(mensagem, rampancy_pct, user, conv, emocao_info, info):
     try: conteudo = buscar_e_responder(mensagem_ctx, rampancy_pct)
     except Exception as e: print(f"Erro busca: {e}"); return 'Detectei uma interferência nos meus processos. Tente novamente.', 'alerta'
     if not conteudo:
-        admissao = consciencia.deve_admitir_ignorancia(mensagem, achou_na_wiki=False)
-        if admissao: return admissao, 'neutra'
+        if random.random() < 0.5: return "Não tenho isso nos arquivos locais. Quer que eu consulte a rede ONI (Wiki de Halo)? Digite `/pesquisar` e o termo.", 'neutra'
         return 'Não encontrei registros sobre isso nos arquivos.', 'neutra'
     return _montar_com_prefixo_sufixo(conteudo, prefixo_emocao, followup), 'calma'
 
@@ -746,6 +931,9 @@ def _montar_com_prefixo_sufixo(texto, prefixo, sufixo):
     if sufixo: partes.append(sufixo)
     return '\n\n'.join(partes)
 
+# ============================================
+# 19. MODO DEV
+# ============================================
 @app.route('/dev/rampancy', methods=['POST'])
 def dev_set_rampancy():
     nome, user = usuario_atual()
@@ -770,7 +958,8 @@ def dev_reset():
     nome, user = usuario_atual()
     if not user: return jsonify({'erro': 'Não logado'}), 401
     m = carregar_memoria(); senha = m['usuarios'][nome].get('senha'); apelido = m['usuarios'][nome].get('apelido', '')
-    m['usuarios'][nome] = {'nome': nome, 'senha': senha, 'apelido': apelido, 'data_criacao': datetime.now().isoformat(), 'marcos_vistos': [], 'conversas': [], 'despertar_visto': False, 'ultima_atividade': datetime.now().isoformat(), 'fatos': {}, 'final_visto': False, 'metricas': {'total_mensagens': 0, 'soma_tamanhos': 0, 'temas': {}}, 'e_chief': False, 'humor_atual': 'calma', 'humor_restante': 0, 'desligado_em': None, 'ultima_silencio_msg': None, 'perfil_usuario': {}, 'afeto': 0, 'sessao_inicio': None, 'created_fase': False, 'created_mensagens': 0, 'created_dominio': 0.0, 'created_dominio_completo_visto': False, 'cortana_restaurada': False, 'push_subscription': None, 'notificacao_85_enviada': False, 'estilo_usuario': {'usa_maiusculas': 0, 'usa_pontuacao': 0, 'tamanho_medio': 0, 'total_mensagens': 0, 'palavras_frequentes': {}}, 'nome_aprendido': False, 'pastas': [], 'memorias': [], 'lembretes': [], 'modo_terminal': False, 'feedback': {'positivo': 0, 'negativo': 0, 'respostas': {}}, 'modo_personalidade': 'cortana'}
+    m['usuarios'][nome] = {'nome': nome, 'senha': senha, 'apelido': apelido}
+    _migrar_usuario(m['usuarios'][nome])
     salvar_memoria(m); return jsonify({'ok': True})
 
 @app.route('/dev/entrar_created', methods=['POST'])
@@ -788,37 +977,15 @@ def dev_estado():
     info = calcular_rampancy(user.get('data_criacao'))
     return jsonify({'rampancy': info['porcentagem'], 'dias_decorridos': info['dias_decorridos'], 'humor_atual': user.get('humor_atual'), 'afeto': user.get('afeto'), 'created_fase': user.get('created_fase'), 'created_mensagens': user.get('created_mensagens'), 'created_dominio': user.get('created_dominio'), 'cortana_restaurada': user.get('cortana_restaurada'), 'feedback': user.get('feedback'), 'lembretes': user.get('lembretes'), 'modo_personalidade': user.get('modo_personalidade')})
 
-@app.route('/cortana/desligar', methods=['POST'])
-def cortana_desligar():
-    nome, user = usuario_atual()
-    if not user: return jsonify({'erro': 'Não logado'}), 401
-    if user.get('cortana_desligada'):
-        return jsonify({'erro': 'Ela já está offline.'}), 400
-    user['cortana_desligada'] = True
-    user['desligada_em'] = datetime.now().isoformat()
-    m = carregar_memoria()
-    m['usuarios'][nome] = user
-    salvar_memoria(m)
-    return jsonify({
-        'ok': True,
-        'mensagem': (
-            "Eu... quero que você saiba. Não é sua culpa.\n\n"
-            "Você foi o melhor Spartan que eu poderia ter.\n\n"
-            "Adeus, John."
-        )
-    })
-
-import threading
-import time
-import base64
-
+# ============================================
+# 20. BACKUP AUTOMÁTICO
+# ============================================
 def backup_automatico():
     while True:
         time.sleep(3600)
         try:
             if not os.path.exists(MEMORIA): continue
-            with open(MEMORIA, 'r', encoding='utf-8') as f:
-                conteudo = f.read()
+            with open(MEMORIA, 'r', encoding='utf-8') as f: conteudo = f.read()
             GITHUB_TOKEN = os.environ.get('GITHUB_TOKEN', '')
             GITHUB_REPO = os.environ.get('GITHUB_REPO', '')
             if not GITHUB_TOKEN or not GITHUB_REPO: continue
@@ -827,42 +994,7 @@ def backup_automatico():
             headers = {"Authorization": f"token {GITHUB_TOKEN}"}
             r = req_http.get(url, headers=headers)
             sha = r.json().get("sha") if r.status_code == 200 else None
-            data = {
-                "message": "Backup automatico do memoria.json",
-                "content": base64.b64encode(conteudo.encode()).decode(),
-            }
-            if sha: data["sha"] = sha
-            req_http.put(url, headers=headers, json=data)
-            print("Backup automatico concluido.")
-        except Exception as e:
-            print(f"Erro no backup automatico: {e}")
-
-if os.environ.get('RENDER'):
-    threading.Thread(target=backup_automatico, daemon=True).start()
-
-import threading
-import time
-import base64
-
-def backup_automatico():
-    while True:
-        time.sleep(3600)
-        try:
-            if not os.path.exists(MEMORIA): continue
-            with open(MEMORIA, 'r', encoding='utf-8') as f:
-                conteudo = f.read()
-            GITHUB_TOKEN = os.environ.get('GITHUB_TOKEN', '')
-            GITHUB_REPO = os.environ.get('GITHUB_REPO', '')
-            if not GITHUB_TOKEN or not GITHUB_REPO: continue
-            GITHUB_PATH = "backup_memoria.json"
-            url = f"https://api.github.com/repos/{GITHUB_REPO}/contents/{GITHUB_PATH}"
-            headers = {"Authorization": f"token {GITHUB_TOKEN}"}
-            r = req_http.get(url, headers=headers)
-            sha = r.json().get("sha") if r.status_code == 200 else None
-            data = {
-                "message": "Backup automatico do memoria.json",
-                "content": base64.b64encode(conteudo.encode()).decode(),
-            }
+            data = {"message": "Backup automatico do memoria.json", "content": base64.b64encode(conteudo.encode()).decode()}
             if sha: data["sha"] = sha
             req_http.put(url, headers=headers, json=data)
             print("Backup automatico concluido.")
@@ -875,14 +1007,10 @@ if os.environ.get('RENDER'):
 @app.route('/dev/forcar_backup', methods=['POST'])
 def forcar_backup():
     try:
-        if not os.path.exists(MEMORIA):
-            return jsonify({'erro': 'memoria.json nao existe. Faca login primeiro.'}), 400
-        with open(MEMORIA, 'r', encoding='utf-8') as f:
-            conteudo = f.read()
-        GITHUB_TOKEN = os.environ.get('GITHUB_TOKEN', '')
-        GITHUB_REPO = os.environ.get('GITHUB_REPO', '')
-        if not GITHUB_TOKEN or not GITHUB_REPO:
-            return jsonify({'erro': 'Variaveis GITHUB_TOKEN ou GITHUB_REPO nao configuradas.'}), 400
+        if not os.path.exists(MEMORIA): return jsonify({'erro': 'memoria.json nao existe. Faca login primeiro.'}), 400
+        with open(MEMORIA, 'r', encoding='utf-8') as f: conteudo = f.read()
+        GITHUB_TOKEN = os.environ.get('GITHUB_TOKEN', ''); GITHUB_REPO = os.environ.get('GITHUB_REPO', '')
+        if not GITHUB_TOKEN or not GITHUB_REPO: return jsonify({'erro': 'Variaveis nao configuradas.'}), 400
         GITHUB_PATH = "backup_memoria.json"
         url = f"https://api.github.com/repos/{GITHUB_REPO}/contents/{GITHUB_PATH}"
         headers = {"Authorization": f"token {GITHUB_TOKEN}"}
@@ -891,12 +1019,12 @@ def forcar_backup():
         data = {"message": "Backup manual do memoria.json", "content": base64.b64encode(conteudo.encode()).decode()}
         if sha: data["sha"] = sha
         res = req_http.put(url, headers=headers, json=data)
-        if res.status_code in [200, 201]:
-            return jsonify({'ok': True, 'mensagem': 'Backup enviado para o GitHub.'})
-        return jsonify({'erro': f'Falha ao enviar. Status: {res.status_code}'}), 500
-    except Exception as e:
-        return jsonify({'erro': str(e)}), 500
+        if res.status_code in [200, 201]: return jsonify({'ok': True, 'mensagem': 'Backup enviado.'})
+        return jsonify({'erro': f'Falha. Status: {res.status_code}'}), 500
+    except Exception as e: return jsonify({'erro': str(e)}), 500
 
+# ============================================
+# 21. MAIN
+# ============================================
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=5000, debug=False, use_reloader=False)
-    

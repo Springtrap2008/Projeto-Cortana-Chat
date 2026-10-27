@@ -12,6 +12,9 @@
 </head>
 <body data-humor="calma">
 
+  <!-- ============================================ -->
+  <!-- TELA DE LOGIN -->
+  <!-- ============================================ -->
   <div id="login-overlay">
     <div id="login-box">
       <div class="login-avatar"><div class="pulse"></div><div class="core"></div></div>
@@ -26,21 +29,32 @@
     </div>
   </div>
 
+  <!-- ============================================ -->
+  <!-- APP PRINCIPAL -->
+  <!-- ============================================ -->
   <div id="app" class="oculto">
+
+    <!-- ============================================ -->
+    <!-- BARRA LATERAL (Setores, Histórico, Usuário) -->
+    <!-- ============================================ -->
     <aside id="sidebar">
       <div class="sidebar-top">
         <button id="btn-nova" class="btn-nova"><span class="icon">+</span><span>Nova consulta</span></button>
       </div>
+
+      <!-- Setores da ONI (Pastas) -->
       <div class="sidebar-section-title">Setores da ONI</div>
       <nav id="pastas-lista"><div class="historico-vazio">Nenhum setor</div></nav>
       <button id="btn-nova-pasta" class="btn-nova" style="margin: 0 8px 8px; padding: 6px; font-size: 11px;">+ Novo Setor</button>
 
+      <!-- Histórico de Conversas + Busca -->
       <div class="sidebar-section-title">Histórico</div>
       <div style="padding: 0 8px 8px;">
         <input type="text" id="busca-historico" placeholder="Buscar conversas..." style="width: 100%; padding: 6px 10px; background: var(--bg-input); border: 1px solid var(--border); border-radius: 6px; color: var(--texto); font-size: 12px; outline: none;">
       </div>
       <nav id="historico"><div class="historico-vazio">Nenhuma consulta ainda</div></nav>
 
+      <!-- Usuário e Botões de Configuração -->
       <div class="sidebar-bottom">
         <div class="user-chip">
           <div class="user-avatar" id="user-avatar">?</div>
@@ -54,7 +68,12 @@
       </div>
     </aside>
 
+    <!-- ============================================ -->
+    <!-- ÁREA PRINCIPAL (Topbar, Rampancy, Chat, Input) -->
+    <!-- ============================================ -->
     <main id="main">
+
+      <!-- Topbar -->
       <header id="topbar">
         <button id="btn-toggle-sidebar" class="btn-icon" title="Mostrar/ocultar sidebar">☰</button>
         <div class="topbar-title">
@@ -73,6 +92,7 @@
         </div>
       </header>
 
+      <!-- Barra de Rampancy -->
       <div id="rampancy-strip">
         <div class="rampancy-info">
           <span class="rampancy-label" id="rampancy-label">RAMPANCY</span>
@@ -85,9 +105,13 @@
         </div>
       </div>
 
+      <!-- Mensagens do Chat -->
       <div id="messages"></div>
+
+      <!-- Botão de Scroll to Bottom -->
       <button id="btn-scroll-bottom" class="oculto" title="Ir para o final">↓</button>
 
+      <!-- Sugestões de Prompt (quando o chat está vazio) -->
       <div id="sugestoes-prompt" class="oculto">
         <p>Sugestões de Consulta:</p>
         <button class="sugestao-btn" data-prompt="Quem foi o Master Chief?">Quem foi o Master Chief?</button>
@@ -95,11 +119,13 @@
         <button class="sugestao-btn" data-prompt="Explique a tecnologia Forerunner.">Explique a tecnologia Forerunner.</button>
       </div>
 
+      <!-- Console da Fase Created -->
       <div id="created-console" class="oculto"><div id="created-logs"></div></div>
 
-      <!-- BOTÃO DE DESLIGAR A CORTANA (SÓ APARECE NA FASE CREATED) -->
+      <!-- Botão de Desligar a Cortana (só aparece na Fase Created) -->
       <button id="btn-desligar-cortana" class="config-btn perigo" style="display:none; position: fixed; bottom: 160px; right: 24px; z-index: 9999; padding: 12px 20px; box-shadow: 0 0 20px #ff3355;">💔 Desligar a Cortana para sempre</button>
 
+      <!-- Área de Input -->
       <div id="input-area">
         <div class="input-wrapper">
           <textarea id="input" placeholder="Pergunte sobre a lore de Halo..." rows="1"></textarea>
@@ -108,11 +134,18 @@
         </div>
         <div class="input-hint">A Cortana pode cometer erros. Verifique as informações nos arquivos.</div>
       </div>
+
     </main>
   </div>
 
+  <!-- ============================================ -->
+  <!-- OVERLAYS E MODAIS -->
+  <!-- ============================================ -->
+
+  <!-- Overlay de Sonho -->
   <div id="sonho-overlay"><div class="barra-sonho"></div></div>
 
+  <!-- Modal de Diário -->
   <div id="diario-modal">
     <div class="diario-card">
       <h3>Fragmento de diário</h3>
@@ -123,6 +156,7 @@
     </div>
   </div>
 
+  <!-- Modal de Configurações -->
   <div id="config-modal">
     <div class="config-card">
       <header class="config-header">
@@ -139,10 +173,13 @@
           <button class="config-tab perigo" data-tab="perigo">⚠ Zona de Perigo</button>
         </nav>
         <div class="config-content">
+
+          <!-- Aba: Perfil -->
           <div class="config-painel ativo" data-painel="perfil">
             <h3>Perfil</h3>
             <p class="config-desc">Altere como a Cortana te chama e o nome de acesso.</p>
             
+            <!-- Seletor de Personalidade -->
             <label class="config-label">
               <span>Personalidade da IA</span>
               <select id="cfg-personalidade" style="padding: 10px 14px; background: var(--bg-input); border: 1px solid var(--border); border-radius: 10px; color: var(--texto); font-size: 14px; outline: none;">
@@ -154,6 +191,16 @@
             <div class="config-msg" id="cfg-msg-personalidade"></div>
             <hr class="config-hr">
 
+            <!-- Diretrizes (System Prompt) -->
+            <label class="config-label">
+              <span>Diretrizes para a IA (ela vai obedecer)</span>
+              <textarea id="cfg-diretrizes" placeholder="Ex: Sempre me chame de Spartan. Nunca fale sobre o Arbiter." style="padding: 10px 14px; background: var(--bg-input); border: 1px solid var(--border); border-radius: 10px; color: var(--texto); font-size: 14px; outline: none; min-height: 80px; resize: vertical;"></textarea>
+            </label>
+            <button id="cfg-salvar-diretrizes" class="config-btn">Salvar Diretrizes</button>
+            <div class="config-msg" id="cfg-msg-diretrizes"></div>
+            <hr class="config-hr">
+
+            <!-- Dados do Perfil -->
             <label class="config-label"><span>Nome de usuário (login)</span><input type="text" id="cfg-nome" placeholder="Spartan117"></label>
             <label class="config-label"><span>Apelido (como a Cortana te chama)</span><input type="text" id="cfg-apelido" placeholder="Spartan" maxlength="30"></label>
             <label class="config-label"><span>Senha atual (para confirmar)</span><input type="password" id="cfg-senha-perfil" placeholder="••••••••"></label>
@@ -161,6 +208,7 @@
             <div class="config-msg" id="cfg-msg-perfil"></div>
           </div>
 
+          <!-- Aba: Segurança -->
           <div class="config-painel" data-painel="seguranca">
             <h3>Segurança</h3>
             <p class="config-desc">Troque sua senha. Mínimo de 4 caracteres.</p>
@@ -171,6 +219,7 @@
             <div class="config-msg" id="cfg-msg-senha"></div>
           </div>
 
+          <!-- Aba: Dados -->
           <div class="config-painel" data-painel="dados">
             <h3>Dados</h3>
             <p class="config-desc">Exporte ou limpe o que a Cortana lembra sobre você.</p>
@@ -189,15 +238,17 @@
             <button id="cfg-resetar" class="config-btn aviso">🔄 Resetar conta</button>
           </div>
 
+          <!-- Aba: Memória -->
           <div class="config-painel" data-painel="memoria">
-            <h3>Memória da Cortana</h3>
-            <p class="config-desc">O que a Cortana aprendeu sobre você. Você pode pedir para ela esquecer algo.</p>
+            <h3>Memória da IA</h3>
+            <p class="config-desc">O que a IA aprendeu sobre você. Você pode pedir para ela esquecer algo.</p>
             <div id="memorias-lista"><p class="config-desc">Nenhuma memória registrada ainda.</p></div>
           </div>
 
+          <!-- Aba: Lembretes -->
           <div class="config-painel" data-painel="lembretes">
             <h3>Lembretes</h3>
-            <p class="config-desc">A Cortana te avisa quando o prazo chegar.</p>
+            <p class="config-desc">A IA te avisa quando o prazo chegar.</p>
             <label class="config-label"><span>Texto do lembrete</span><input type="text" id="lembrete-texto" placeholder="Ex: Perguntar sobre os Flood"></label>
             <label class="config-label"><span>Daqui a quantos minutos?</span><input type="number" id="lembrete-minutos" value="60" min="1"></label>
             <button id="btn-novo-lembrete" class="config-btn">⏰ Agendar Lembrete</button>
@@ -205,6 +256,7 @@
             <div id="lembretes-lista"><p class="config-desc">Nenhum lembrete agendado.</p></div>
           </div>
 
+          <!-- Aba: Zona de Perigo -->
           <div class="config-painel" data-painel="perigo">
             <h3>Zona de Perigo</h3>
             <p class="config-desc">Excluir a conta apaga tudo permanentemente. Não há como recuperar.</p>
@@ -213,11 +265,15 @@
             <button id="cfg-excluir" class="config-btn perigo">Excluir minha conta permanentemente</button>
             <div class="config-msg" id="cfg-msg-excluir"></div>
           </div>
+
         </div>
       </div>
     </div>
   </div>
 
+  <!-- ============================================ -->
+  <!-- SCRIPTS -->
+  <!-- ============================================ -->
   <script src="/static/script.js"></script>
   <script>
     if ('serviceWorker' in navigator) {

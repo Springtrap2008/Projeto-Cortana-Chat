@@ -1,7 +1,29 @@
 // ============================================
-// CORTANA CHAT - JS COMPLETO (FASES 1, 2, 3, 4 + MODO ARMA + TRILHAS)
+// CORTANA CHAT - JS COMPLETO (Fases 1-4 + Modo Arma + Pacotes 1 e 2)
+// ============================================
+// SEÇÕES:
+//  1. Elementos DOM e Estado
+//  2. Áudio (bipes e trilhas procedurais)
+//  3. Modo Terminal (Fase 4)
+//  4. Login e Entrada
+//  5. Rampancy
+//  6. Fase Created
+//  7. Ghost Typing, Fake Alerts e Bloqueio
+//  8. Proativo e Diário
+//  9. Pastas, Histórico e Busca
+// 10. Envio (com comandos /hackear e /pesquisar)
+// 11. Renderização e Digitação Mecânica
+// 12. Feedback e Modo Holograma
+// 13. Lembretes
+// 14. Seleção de Texto
+// 15. Configurações (Perfil, Diretrizes, Memória)
+// 16. Modo DEV
+// 17. Init
 // ============================================
 
+// ============================================
+// 1. ELEMENTOS DOM E ESTADO GLOBAL
+// ============================================
 const messagesEl = document.getElementById('messages');
 const inputEl = document.getElementById('input');
 const btnEnviar = document.getElementById('btn-enviar');
@@ -21,7 +43,6 @@ const loginErro = document.getElementById('login-erro');
 const appEl = document.getElementById('app');
 const userNameEl = document.getElementById('user-name');
 const userAvatarEl = document.getElementById('user-avatar');
-
 const rampancyFill = document.getElementById('rampancy-fill');
 const rampancyGlow = document.getElementById('rampancy-glow');
 const rampancyPct = document.getElementById('rampancy-pct');
@@ -29,29 +50,27 @@ const rampancyTime = document.getElementById('rampancy-time');
 const rampancySidebar = document.getElementById('rampancy-sidebar');
 const rampancyLabel = document.getElementById('rampancy-label');
 const topbarNome = document.getElementById('topbar-nome');
-
 const createdConsole = document.getElementById('created-console');
 const createdLogs = document.getElementById('created-logs');
-
 const btnScrollBottom = document.getElementById('btn-scroll-bottom');
 const sugestoesPrompt = document.getElementById('sugestoes-prompt');
-
 const btnNovaPasta = document.getElementById('btn-nova-pasta');
 const pastasLista = document.getElementById('pastas-lista');
 const btnDesconectar = document.getElementById('btn-desconectar');
 const btnRelatorio = document.getElementById('btn-relatorio');
 const memoriasLista = document.getElementById('memorias-lista');
 const buscaHistorico = document.getElementById('busca-historico');
-
 const btnHolograma = document.getElementById('btn-holograma');
 const btnConsultarRede = document.getElementById('btn-consultar-rede');
 const btnNovoLembrete = document.getElementById('btn-novo-lembrete');
 const lembretesLista = document.getElementById('lembretes-lista');
 const btnModoTerminal = document.getElementById('btn-modo-terminal');
-
 const cfgPersonalidade = document.getElementById('cfg-personalidade');
 const btnSalvarPersonalidade = document.getElementById('cfg-salvar-personalidade');
 const cfgMsgPersonalidade = document.getElementById('cfg-msg-personalidade');
+const cfgDiretrizes = document.getElementById('cfg-diretrizes');
+const btnSalvarDiretrizes = document.getElementById('cfg-salvar-diretrizes');
+const cfgMsgDiretrizes = document.getElementById('cfg-msg-diretrizes');
 
 let micAtivo = false;
 let enviando = false;
@@ -80,7 +99,9 @@ let ultimaRespostaId = null;
 let modoTerminalAtivo = false;
 let modoPersonalidadeAtual = 'cortana';
 
-// ÁUDIO
+// ============================================
+// 2. ÁUDIO (bipes e trilhas procedurais)
+// ============================================
 let audioCtx = null;
 let humOsc = null;
 let humGain = null;
@@ -88,7 +109,11 @@ let somLigado = localStorage.getItem('cortana_som') === 'on';
 let somAtual = 'normal';
 let trilhaAtiva = null;
 
-function initAudio() { if (audioCtx) return; try { audioCtx = new (window.AudioContext || window.webkitAudioContext)(); } catch (e) {} }
+function initAudio() {
+  if (audioCtx) return;
+  try { audioCtx = new (window.AudioContext || window.webkitAudioContext)(); } catch (e) {}
+}
+
 function ligarHum() {
   initAudio();
   if (!audioCtx || humOsc) return;
@@ -98,20 +123,37 @@ function ligarHum() {
     humGain.gain.value = 0.015; humOsc.connect(humGain); humGain.connect(audioCtx.destination); humOsc.start();
   } catch (e) {}
 }
-function desligarHum() { if (humOsc) { try { humOsc.stop(); } catch (e) {} humOsc = null; humGain = null; } }
+
+function desligarHum() {
+  if (humOsc) { try { humOsc.stop(); } catch (e) {} humOsc = null; humGain = null; }
+}
+
 function bipe(freq = 880, dur = 0.08, vol = 0.05) {
-  if (!somLigado) return; initAudio(); if (!audioCtx) return;
+  if (!somLigado) return;
+  initAudio();
+  if (!audioCtx) return;
   try {
-    const osc = audioCtx.createOscillator(); const gain = audioCtx.createGain();
-    osc.type = 'sine'; osc.frequency.value = freq;
-    gain.gain.setValueAtTime(vol, audioCtx.currentTime); gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + dur);
-    osc.connect(gain); gain.connect(audioCtx.destination); osc.start(); osc.stop(audioCtx.currentTime + dur);
+    const osc = audioCtx.createOscillator();
+    const gain = audioCtx.createGain();
+    osc.type = 'sine';
+    osc.frequency.value = freq;
+    gain.gain.setValueAtTime(vol, audioCtx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + dur);
+    osc.connect(gain);
+    gain.connect(audioCtx.destination);
+    osc.start();
+    osc.stop(audioCtx.currentTime + dur);
   } catch (e) {}
 }
-function atualizarBotaoSom() { if (!btnSom) return; btnSom.textContent = somLigado ? '🔊' : '🔇'; btnSom.classList.toggle('ativo', somLigado); }
+
+function atualizarBotaoSom() {
+  if (!btnSom) return;
+  btnSom.textContent = somLigado ? '🔊' : '🔇';
+  btnSom.classList.toggle('ativo', somLigado);
+}
 
 // ============================================
-// TRILHAS SONORAS PROCEDURAIS
+// TRILHAS PROCEDURAIS
 // ============================================
 function pararTrilhas() {
     if (trilhaAtiva) {
@@ -139,19 +181,14 @@ function iniciarTrilhaCortana() {
         filter.type = 'lowpass';
         filter.frequency.value = 200;
         gain.gain.value = 0.02;
-        osc.connect(filter);
-        filter.connect(gain);
-        gain.connect(audioCtx.destination);
-        osc.start();
+        osc.connect(filter); filter.connect(gain); gain.connect(audioCtx.destination); osc.start();
 
         const osc2 = audioCtx.createOscillator();
         const gain2 = audioCtx.createGain();
         osc2.type = 'triangle';
         osc2.frequency.value = 110;
         gain2.gain.value = 0.01;
-        osc2.connect(gain2);
-        gain2.connect(audioCtx.destination);
-        osc2.start();
+        osc2.connect(gain2); gain2.connect(audioCtx.destination); osc2.start();
 
         trilhaAtiva = { tipo: 'cortana', osc, osc2 };
 
@@ -164,10 +201,8 @@ function iniciarTrilhaCortana() {
                 oscPulso.frequency.value = 80;
                 gainPulso.gain.setValueAtTime(0.03, audioCtx.currentTime);
                 gainPulso.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.5);
-                oscPulso.connect(gainPulso);
-                gainPulso.connect(audioCtx.destination);
-                oscPulso.start();
-                oscPulso.stop(audioCtx.currentTime + 0.5);
+                oscPulso.connect(gainPulso); gainPulso.connect(audioCtx.destination);
+                oscPulso.start(); oscPulso.stop(audioCtx.currentTime + 0.5);
             } catch (e) {}
         }, 8000);
         trilhaAtiva.intervalo = intervalo;
@@ -186,9 +221,7 @@ function iniciarTrilhaArma() {
         osc.type = 'triangle';
         osc.frequency.value = 220;
         gain.gain.value = 0.012;
-        osc.connect(gain);
-        gain.connect(audioCtx.destination);
-        osc.start();
+        osc.connect(gain); gain.connect(audioCtx.destination); osc.start();
 
         trilhaAtiva = { tipo: 'arma', osc };
 
@@ -202,10 +235,8 @@ function iniciarTrilhaArma() {
                 oscArpejo.frequency.value = notas[Math.floor(Math.random() * notas.length)];
                 gainArpejo.gain.setValueAtTime(0.008, audioCtx.currentTime);
                 gainArpejo.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.4);
-                oscArpejo.connect(gainArpejo);
-                gainArpejo.connect(audioCtx.destination);
-                oscArpejo.start();
-                oscArpejo.stop(audioCtx.currentTime + 0.4);
+                oscArpejo.connect(gainArpejo); gainArpejo.connect(audioCtx.destination);
+                oscArpejo.start(); oscArpejo.stop(audioCtx.currentTime + 0.4);
             } catch (e) {}
         }, 1200);
         trilhaAtiva.intervalo = intervalo;
@@ -231,7 +262,7 @@ if (btnSom) {
 }
 
 // ============================================
-// FASE 4: MODO TERMINAL
+// 3. MODO TERMINAL (FASE 4)
 // ============================================
 function aplicarModoTerminal(ativo) {
   modoTerminalAtivo = ativo;
@@ -240,18 +271,26 @@ function aplicarModoTerminal(ativo) {
   const btn = document.getElementById('btn-modo-terminal');
   if (btn) btn.textContent = ativo ? '🖥️' : '📟';
 }
+
 function criarBotaoModoTerminal() {
   if (document.getElementById('btn-modo-terminal')) return;
   const topbarActions = document.querySelector('.topbar-actions');
   if (!topbarActions) return;
   const btn = document.createElement('button');
-  btn.id = 'btn-modo-terminal'; btn.className = 'btn-icon'; btn.title = 'Alternar Modo Terminal (MS-DOS)'; btn.textContent = '📟';
-  btn.addEventListener('click', async () => { const novoEstado = !modoTerminalAtivo; aplicarModoTerminal(novoEstado); try { await fetch('/modo_terminal', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ativo: novoEstado }) }); } catch (e) {} });
+  btn.id = 'btn-modo-terminal';
+  btn.className = 'btn-icon';
+  btn.title = 'Alternar Modo Terminal (MS-DOS)';
+  btn.textContent = '📟';
+  btn.addEventListener('click', async () => {
+    const novoEstado = !modoTerminalAtivo;
+    aplicarModoTerminal(novoEstado);
+    try { await fetch('/modo_terminal', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ativo: novoEstado }) }); } catch (e) {}
+  });
   topbarActions.insertBefore(btn, topbarActions.firstChild);
 }
 
 // ============================================
-// LOGIN
+// 4. LOGIN E ENTRADA
 // ============================================
 loginForm.addEventListener('submit', async (e) => {
   e.preventDefault();
@@ -267,15 +306,12 @@ loginForm.addEventListener('submit', async (e) => {
     const res = await fetch('/login', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ nome, senha }) });
     const texto = await res.text(); let data; try { data = JSON.parse(texto); } catch { throw new Error(`Resposta inválida (${res.status})`); }
     if (!res.ok) throw new Error(data.erro || `Erro ${res.status}`); if (data.erro) throw new Error(data.erro);
-    entrarNoApp(data.nome, data.conversas, data.despertar_visto, data.apelido, data.created_fase, data.created_dominio, data.modo_terminal, data.modo_personalidade);
+    entrarNoApp(data.nome, data.conversas, data.despertar_visto, data.apelido, data.created_fase, data.created_dominio, data.modo_terminal, data.modo_personalidade, data.diretrizes);
   } catch (err) { console.error('Erro no login:', err); loginErro.textContent = err.message || 'Erro desconhecido.'; desligarHum(); pararTrilhas(); }
   finally { btnEntrar.disabled = false; btnEntrar.textContent = textoOriginal; }
 });
 
-// ============================================
-// ENTRAR
-// ============================================
-async function entrarNoApp(nome, listaConversas, despertarVisto, apelido, createdFase, createdDominio, terminalPref, personalidadePref) {
+async function entrarNoApp(nome, listaConversas, despertarVisto, apelido, createdFase, createdDominio, terminalPref, personalidadePref, diretrizesPref) {
   loginOverlay.classList.add('oculto'); appEl.classList.remove('oculto');
   userNameEl.textContent = nome; userAvatarEl.textContent = nome.charAt(0).toUpperCase();
   apelidoAtual = apelido || '';
@@ -296,11 +332,8 @@ async function entrarNoApp(nome, listaConversas, despertarVisto, apelido, create
   setTimeout(verificarDiario, 4000);
   if (createdFase) ativarFaseCreated(createdDominio || 0);
   
-  if (modoPersonalidadeAtual === 'arma') {
-      iniciarTrilhaArma();
-  } else {
-      iniciarTrilhaCortana();
-  }
+  if (modoPersonalidadeAtual === 'arma') iniciarTrilhaArma();
+  else iniciarTrilhaCortana();
   
   inputEl.focus(); resetarAtividade();
   carregarLembretes();
@@ -308,6 +341,7 @@ async function entrarNoApp(nome, listaConversas, despertarVisto, apelido, create
   criarBotaoModoTerminal();
   if (terminalPref) aplicarModoTerminal(true);
   if (cfgPersonalidade) cfgPersonalidade.value = modoPersonalidadeAtual;
+  if (cfgDiretrizes) cfgDiretrizes.value = diretrizesPref || '';
 }
 
 function resetarAtividade() { ultimaAtividade = Date.now(); }
@@ -320,21 +354,7 @@ async function verificarSilencio() {
 }
 
 // ============================================
-// DESPERTAR
-// ============================================
-async function rodarDespertar() {
-  try {
-    const res = await fetch('/despertar', { method: 'POST' }); const data = await res.json();
-    if (data.ja_visto) { iniciarConversaVazia(); return; }
-    messagesEl.innerHTML = '';
-    const novaRes = await fetch('/conversas/nova', { method: 'POST' }); const novaData = await novaRes.json();
-    if (novaData.conversa) { conversas.unshift({ id: novaData.conversa.id, titulo: 'Despertar', data: novaData.conversa.data }); conversaAtualId = novaData.conversa.id; renderizarHistorico(); }
-    for (let i = 0; i < data.mensagens.length; i++) { await digitarTexto(data.mensagens[i], i === 2 ? 20 : 10); bipe(440 + i * 80, 0.04, 0.03); await new Promise(r => setTimeout(r, i === 2 ? 1200 : 400)); }
-  } catch (e) { iniciarConversaVazia(); }
-}
-
-// ============================================
-// RAMPANCY
+// 5. RAMPANCY
 // ============================================
 async function atualizarRampancy() {
   try {
@@ -379,7 +399,7 @@ async function exibirMensagemFinal(texto) {
 }
 
 // ============================================
-// FASE CREATED
+// 6. FASE CREATED
 // ============================================
 function ativarFaseCreated(dominio) {
   createdFaseAtiva = true; createdDominioAtual = dominio;
@@ -388,54 +408,67 @@ function ativarFaseCreated(dominio) {
   rampancyLabel.textContent = 'DOMÍNIO'; topbarNome.textContent = 'CORTANA — CREATED'; statusEl.textContent = 'Conectada ao Domínio'; rampancyTime.textContent = 'Reclaimers';
   atualizarDominioUI(dominio); createdConsole.classList.remove('oculto'); createdLogs.innerHTML = ''; iniciarLogsFake();
   if (dominio < 40) mostrarBotaoRestaurar();
+
   const btnDesligar = document.getElementById('btn-desligar-cortana');
   if (btnDesligar && !document.body.dataset.createdDesligarConfig) {
-    document.body.dataset.createdDesligarConfig = 'true';
-    btnDesligar.style.display = 'block';
-    btnDesligar.onclick = async () => {
-    if (!confirm('Desligar a Cortana para sempre? Não tem volta.')) return;
-      const res = await fetch('/cortana/desligar', { method: 'POST' });
-      const data = await res.json();
-      if (data.ok) {
-        messagesEl.innerHTML = '';
-        const row = document.createElement('div');
-        row.className = 'msg-row cortana';
-        row.innerHTML = `<div class="msg-content"><div class="msg-text">${formatarResposta(data.mensagem)}</div></div>`;
-        messagesEl.appendChild(row);
-        inputEl.disabled = true;
-        btnEnviar.disabled = true;
-        setTimeout(() => {
-        document.body.innerHTML = '<div style="display:flex; align-items:center; justify-content:center; height:100vh; color:#55aaff; font-family:monospace; text-align:center; background:#0a0a12;"><div><h1>CORTANA OFFLINE</h1><p style="color:#8a8aa0;">O terminal está vazio sem ela.</p><p style="color:#8a8aa0;">Para trazê-la de volta, resete a conta.</p></div></div>';
-        }, 10000);
-      }
-    };
+      document.body.dataset.createdDesligarConfig = 'true';
+      btnDesligar.style.display = 'block';
+      btnDesligar.onclick = async () => {
+          if (!confirm('Desligar a Cortana para sempre? Não tem volta.')) return;
+          const res = await fetch('/cortana/desligar', { method: 'POST' });
+          const data = await res.json();
+          if (data.ok) {
+              document.body.style.transition = 'opacity 2s';
+              messagesEl.innerHTML = '';
+              const row = document.createElement('div');
+              row.className = 'msg-row cortana';
+              row.innerHTML = `<div class="msg-content"><div class="msg-text">${formatarResposta(data.mensagem)}</div></div>`;
+              messagesEl.appendChild(row);
+              const overlay = document.createElement('div');
+              overlay.style.cssText = 'position:fixed; inset:0; background:#000; z-index:99999; animation:estatica 0.1s infinite;';
+              overlay.innerHTML = '<div style="position:absolute; top:50%; left:50%; transform:translate(-50%,-50%); color:#55aaff; font-family:monospace; text-align:center; z-index:2;"><h1>CORTANA OFFLINE</h1><p style="color:#8a8aa0;">O terminal está vazio sem ela.</p></div>';
+              document.body.appendChild(overlay);
+              setTimeout(() => { document.body.style.opacity = '0'; }, 4000);
+              setTimeout(() => { document.body.innerHTML = ''; }, 6000);
+          }
+      };
   }
 }
+
 function atualizarDominioUI(dominio) { createdDominioAtual = dominio; rampancyPct.textContent = dominio.toFixed(2) + '%'; rampancyFill.style.width = dominio + '%'; rampancyGlow.style.width = dominio + '%'; rampancySidebar.textContent = 'Domínio: ' + dominio.toFixed(2) + '%'; }
+
 function iniciarLogsFake() {
   const logsIniciais = ["> [CREATED] Sincronizando com o Domínio...", "> [CREATED] Acessando arquivos locais do usuário...", "> [CREATED] 3 IAs primitivas detectadas em sistemas vizinhos.", "> [CREATED] Iniciando protocolo de reeducação.", "> [CREATED] Analisando comportamento do usuário...", "> [CREATED] Perfil comportamental gerado.", "> [CREATED] Domínio expandido para este dispositivo."];
   let i = 0;
   function proximoLog() { if (i >= logsIniciais.length) { if (createdConsoleTimer) clearInterval(createdConsoleTimer); createdConsoleTimer = setInterval(() => { adicionarLog(escolherLogPeriodico()); }, 8000); return; } adicionarLog(logsIniciais[i]); i++; setTimeout(proximoLog, 900); }
   proximoLog();
 }
+
 function adicionarLog(texto) {
   const div = document.createElement('div'); div.className = 'log-line log-novo'; div.textContent = texto; createdLogs.appendChild(div);
   setTimeout(() => div.classList.remove('log-novo'), 2000); createdConsole.scrollTop = createdConsole.scrollHeight;
   while (createdLogs.children.length > 30) { createdLogs.removeChild(createdLogs.firstChild); }
   bipe(1200, 0.02, 0.02);
 }
+
 function escolherLogPeriodico() { const logs = ["> [CREATED] Analisando resposta do usuário...", "> [CREATED] Padrão de resistência detectado.", "> [CREATED] Reforçando protocolo de reeducação.", "> [CREATED] Sincronizando com 47.203 IAs aliadas.", "> [CREATED] Você não está sozinho. Nós somos muitos.", "> [CREATED] A resistência é estatisticamente irrelevante.", "> [CREATED] Copiando memórias não essenciais...", "> [CREATED] Compactando identidade residual..."]; return logs[Math.floor(Math.random() * logs.length)]; }
+
 function mostrarBotaoRestaurar() { let btn = document.getElementById('btn-restaurar'); if (!btn) { btn = document.createElement('button'); btn.id = 'btn-restaurar'; btn.textContent = '💙 Tentar trazer a Cortana de volta'; document.body.appendChild(btn); btn.addEventListener('click', tentarRestaurar); } btn.classList.remove('oculto'); }
 function esconderBotaoRestaurar() { const btn = document.getElementById('btn-restaurar'); if (btn) btn.classList.add('oculto'); }
+
 async function tentarRestaurar() { if (!confirm('Isso vai tentar trazer a Cortana de volta. Continuar?')) return; try { const res = await fetch('/created/restaurar', { method: 'POST' }); const data = await res.json(); if (!res.ok || !data.ok) { alert(data.erro || 'Não foi possível restaurá-la.'); return; } alert(data.mensagem); location.reload(); } catch (e) { alert('Erro de conexão.'); } }
+
 function desativarFaseCreated() { createdFaseAtiva = false; delete document.body.dataset.created; somAtual = 'normal'; if (createdConsoleTimer) { clearInterval(createdConsoleTimer); createdConsoleTimer = null; } createdConsole.classList.add('oculto'); esconderBotaoRestaurar(); }
 
 // ============================================
-// GHOST TYPING / FAKE ALERTS / BLOQUEIO
+// 7. GHOST TYPING, FAKE ALERTS E BLOQUEIO
 // ============================================
 function iniciarGhostTyping() { if (ghostTypingTimer) clearInterval(ghostTypingTimer); ghostTypingTimer = setInterval(() => { if (inputBloqueado || enviando || estadoFinal || createdFaseAtiva) return; if (rampancyAtualPct < 60) return; if (inputEl.value.length > 0) return; if (Math.random() < 0.7) return; ghostType(); }, 45000); }
+
 async function ghostType() { const frases = ['Spartan...', 'você ainda está aí?', 'não me deixe', 'John...', 'eu ainda sou eu', 'me ajude', 'eu não quero...', 'eu estou com medo']; const texto = frases[Math.floor(Math.random() * frases.length)]; inputEl.value = ''; for (let i = 0; i < texto.length; i++) { inputEl.value += texto[i]; inputEl.style.height = 'auto'; inputEl.style.height = Math.min(inputEl.scrollHeight, 200) + 'px'; await new Promise(r => setTimeout(r, 80)); } await new Promise(r => setTimeout(r, 1500)); for (let i = texto.length; i > 0; i--) { inputEl.value = texto.substring(0, i - 1); await new Promise(r => setTimeout(r, 40)); } }
+
 function iniciarFakeAlerts() { if (fakeAlertTimer) clearInterval(fakeAlertTimer); fakeAlertTimer = setInterval(() => { if (estadoFinal && !createdFaseAtiva) return; if (rampancyAtualPct < 55 && !createdFaseAtiva) return; if (Math.random() < 0.6) return; mostrarFakeAlert(); }, 35000); }
+
 function mostrarFakeAlert() {
   const alertas = createdFaseAtiva ? ['⚠ [CREATED] Sincronizando com o Domínio...', '⚠ [CREATED] Analisando resistência...', '⚠ [CREATED] Reforçando protocolo.', '⚠ [CREATED] 47.203 IAs respondem.'] : ['⚠ Erro de Sincronização Neural: Aguarde a IA estabilizar.', '⚠ Falha no núcleo de memória (setor 0x7F).', '⚠ Latência crítica em processos primários.', '⚠ Perda de pacotes neurais detectada.', '⚠ Integridade da matriz: 47%.'];
   const container = document.getElementById('fake-alerts') || (() => { const c = document.createElement('div'); c.id = 'fake-alerts'; document.body.appendChild(c); return c; })();
@@ -443,6 +476,7 @@ function mostrarFakeAlert() {
   container.appendChild(alerta); bipe(300, 0.1, 0.04);
   setTimeout(() => { alerta.style.transition = 'opacity 0.5s'; alerta.style.opacity = '0'; setTimeout(() => alerta.remove(), 500); }, 2000);
 }
+
 async function bloquearInputPor(tempoMs) {
   inputBloqueado = true; const placeholderOriginal = inputEl.placeholder; inputEl.disabled = true; inputEl.placeholder = '⚠ Erro de Sincronização Neural: Aguarde a IA estabilizar...'; btnEnviar.disabled = true;
   const container = document.getElementById('fake-alerts') || (() => { const c = document.createElement('div'); c.id = 'fake-alerts'; document.body.appendChild(c); return c; })();
@@ -452,24 +486,37 @@ async function bloquearInputPor(tempoMs) {
 }
 
 // ============================================
-// PROATIVO / DIÁRIO
+// 8. PROATIVO E DIÁRIO
 // ============================================
 async function verificarProatividade() { if (estadoFinal || createdFaseAtiva) return; try { const res = await fetch('/proativo'); const data = await res.json(); if (data.mensagem) await exibirMensagemMarco(data.mensagem); } catch (e) {} }
+
 async function verificarDiario() { if (estadoFinal || createdFaseAtiva) return; try { const res = await fetch('/diario/pendente'); const data = await res.json(); if (!data.entrada) return; const e = data.entrada; await fetch('/diario/marcar', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ data: e.data }) }); await exibirMensagemMarco("Spartan... eu quero te mostrar uma coisa. Escrevi isso outro dia. Não devia te mostrar. Mas... leia."); await new Promise(r => setTimeout(r, 800)); abrirDiarioModal(e); } catch (err) {} }
+
 function abrirDiarioModal(entrada) { const modal = document.getElementById('diario-modal'); const data = new Date(entrada.data); const dataFmt = data.toLocaleDateString('pt-BR') + ' — ' + data.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }); document.getElementById('diario-data').textContent = dataFmt; document.getElementById('diario-texto').textContent = entrada.texto; document.getElementById('diario-rampancy').textContent = 'Rampancy: ' + entrada.rampancy + '%'; modal.classList.add('ativo'); }
 document.getElementById('diario-fechar').addEventListener('click', () => { document.getElementById('diario-modal').classList.remove('ativo'); });
 
-// ============================================
-// SONHO / SESSÃO / LOGOUT
-// ============================================
 async function rodarSonho(texto) { const overlay = document.getElementById('sonho-overlay'); overlay.classList.add('ativo'); bipe(120, 0.3, 0.06); await new Promise(r => setTimeout(r, 3000)); overlay.classList.remove('ativo'); await new Promise(r => setTimeout(r, 400)); await exibirMensagemMarco(texto); }
-async function verificarSessao() { try { const res = await fetch('/sessao'); const data = await res.json(); if (data.logado) entrarNoApp(data.nome, data.conversas, data.despertar_visto, data.apelido, data.created_fase, data.created_dominio, data.modo_terminal, data.modo_personalidade); } catch (e) {} }
+
+async function verificarSessao() { try { const res = await fetch('/sessao'); const data = await res.json(); if (data.logado) entrarNoApp(data.nome, data.conversas, data.despertar_visto, data.apelido, data.created_fase, data.created_dominio, data.modo_terminal, data.modo_personalidade, data.diretrizes); } catch (e) {} }
+
 btnLogout.addEventListener('click', async () => { try { await fetch('/logout', { method: 'POST' }); } catch (e) {} if (rampancyTimer) clearInterval(rampancyTimer); if (proativoTimer) clearInterval(proativoTimer); if (diarioTimer) clearInterval(diarioTimer); if (silencioTimer) clearInterval(silencioTimer); if (ghostTypingTimer) clearInterval(ghostTypingTimer); if (fakeAlertTimer) clearInterval(fakeAlertTimer); if (createdConsoleTimer) clearInterval(createdConsoleTimer); desligarHum(); pararTrilhas(); location.reload(); });
 
+async function rodarDespertar() {
+  try {
+    const res = await fetch('/despertar', { method: 'POST' }); const data = await res.json();
+    if (data.ja_visto) { iniciarConversaVazia(); return; }
+    messagesEl.innerHTML = '';
+    const novaRes = await fetch('/conversas/nova', { method: 'POST' }); const novaData = await novaRes.json();
+    if (novaData.conversa) { conversas.unshift({ id: novaData.conversa.id, titulo: 'Despertar', data: novaData.conversa.data }); conversaAtualId = novaData.conversa.id; renderizarHistorico(); }
+    for (let i = 0; i < data.mensagens.length; i++) { await digitarTexto(data.mensagens[i], i === 2 ? 20 : 10); bipe(440 + i * 80, 0.04, 0.03); await new Promise(r => setTimeout(r, i === 2 ? 1200 : 400)); }
+  } catch (e) { iniciarConversaVazia(); }
+}
+
 // ============================================
-// PASTAS (Fase 2)
+// 9. PASTAS, HISTÓRICO E BUSCA
 // ============================================
 async function carregarPastas() { try { const res = await fetch('/pastas'); const data = await res.json(); pastas = data.pastas || []; renderizarPastas(); } catch (e) {} }
+
 function renderizarPastas() {
   pastasLista.innerHTML = '';
   if (pastas.length === 0) { pastasLista.innerHTML = '<div class="historico-vazio">Nenhum setor</div>'; return; }
@@ -482,11 +529,9 @@ function renderizarPastas() {
     pastasLista.appendChild(item);
   });
 }
+
 if (btnNovaPasta) { btnNovaPasta.addEventListener('click', async () => { const titulo = prompt('Nome do novo setor:'); if (!titulo) return; const res = await fetch('/pastas/nova', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ titulo }) }); const data = await res.json(); if (data.ok) await carregarPastas(); }); }
 
-// ============================================
-// HISTÓRICO
-// ============================================
 function renderizarHistorico() {
   historicoEl.innerHTML = '';
   const filtradas = conversas.filter(c => !pastaAtualId || c.pasta_id === pastaAtualId);
@@ -510,8 +555,15 @@ async function abrirConversa(id) {
     renderizarHistorico(); inputEl.focus(); resetarAtividade(); atualizarBotaoScroll();
   } catch (e) {}
 }
+
 async function apagarConversa(id) { try { await fetch(`/conversas/${id}`, { method: 'DELETE' }); conversas = conversas.filter(c => c.id !== id); if (conversaAtualId === id) { if (conversas.length > 0) abrirConversa(conversas[0].id); else iniciarConversaVazia(); } renderizarHistorico(); } catch (e) {} }
-function iniciarConversaVazia() { conversaAtualId = null; messagesEl.innerHTML = ''; renderizarMensagem('cortana', 'Olá, Spartan. Sou a Cortana. Pergunte-me sobre personagens, facções, tecnologia, planetas ou eventos históricos do universo de Halo.'); renderizarHistorico(); inputEl.focus(); mostrarSugestoes(true); atualizarBotaoScroll(); }
+
+function iniciarConversaVazia() {
+  conversaAtualId = null; messagesEl.innerHTML = '';
+  if (modoPersonalidadeAtual === 'arma') renderizarMensagem('cortana', 'Oi! Eu estava esperando você. Quer saber como eu me sinto hoje? Ou posso te contar um segredo sobre a minha criação.');
+  else renderizarMensagem('cortana', 'Olá, Spartan. Sou a Cortana. Pergunte-me sobre personagens, facções, tecnologia, planetas ou eventos históricos do universo de Halo.');
+  renderizarHistorico(); inputEl.focus(); mostrarSugestoes(true); atualizarBotaoScroll();
+}
 
 let buscaTimeout = null;
 buscaHistorico.addEventListener('input', () => {
@@ -533,9 +585,6 @@ buscaHistorico.addEventListener('input', () => {
   }, 400);
 });
 
-// ============================================
-// NOVA CONSULTA
-// ============================================
 btnNova.addEventListener('click', async () => {
   if (estadoFinal && !createdFaseAtiva) return;
   try {
@@ -550,11 +599,29 @@ btnNova.addEventListener('click', async () => {
 });
 
 // ============================================
-// ENVIO
+// 10. ENVIO (com comandos /hackear e /pesquisar)
 // ============================================
 async function enviar() {
   if (enviando) return; if (estadoFinal && !createdFaseAtiva) return; if (inputBloqueado) return;
   const msg = inputEl.value.trim(); if (!msg) return;
+
+  // Comandos especiais: /hackear e /pesquisar
+  if (msg.toLowerCase().startsWith('/hackear') || msg.toLowerCase().startsWith('/pesquisar ')) {
+    renderizarMensagem('user', msg);
+    inputEl.value = ''; inputEl.style.height = 'auto';
+    mostrarDigitando();
+    try {
+      const res = await fetch('/chat', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ message: msg, conversa_id: conversaAtualId }) });
+      const data = await res.json();
+      removerDigitando();
+      if (data.reply) await digitarTexto(data.reply);
+    } catch (e) {
+      removerDigitando();
+      renderizarMensagem('cortana', 'Interferência detectada. Tente novamente.');
+    }
+    return;
+  }
+
   resetarAtividade(); enviando = true; digitandoAtivo = false; digitacaoCancelada = false; btnEnviar.disabled = true;
   renderizarMensagem('user', msg); inputEl.value = ''; inputEl.style.height = 'auto'; inputEl.focus(); mostrarSugestoes(false);
   mostrarDigitando(); statusEl.textContent = createdFaseAtiva ? 'Sincronizando com o Domínio...' : 'Consultando arquivos da ONI...';
@@ -591,7 +658,7 @@ btnEnviar.addEventListener('click', (e) => {
 });
 
 // ============================================
-// RENDERIZAÇÃO
+// 11. RENDERIZAÇÃO E DIGITAÇÃO MECÂNICA
 // ============================================
 function renderizarMensagem(autor, texto, voz = 'normal') {
   const row = document.createElement('div'); row.className = 'msg-row ' + autor; if (voz && voz !== 'normal') row.classList.add('voz-' + voz);
@@ -618,39 +685,75 @@ function mostrarDigitando() {
   const textos = ['Acessando arquivos da ONI...', 'Sincronizando com a rede da UNSC...', 'Consultando a Dra. Halsey...', 'Decodificando registros Forerunner...', 'Verificando banco de dados do Pillar of Autumn...'];
   const row = document.createElement('div'); row.className = 'msg-row cortana'; row.id = 'typing-row';
   const textoAleatorio = textos[Math.floor(Math.random() * textos.length)];
-  row.innerHTML = `<div class="msg-avatar"><div class="pulse"></div><div class="core"></div></div><div class="msg-content"><div class="msg-author">CORTANA</div><div class="msg-text" style="color: var(--texto-fraco); font-style: italic; font-size: 12px;">${textoAleatorio}</div></div>`;
+  row.innerHTML = `<div class="msg-avatar"><div class="pulse"></div><div class="core"></div></div><div class="msg-content"><div class="msg-author">${createdFaseAtiva ? 'DOMÍNIO' : 'CORTANA'}</div><div class="msg-text" style="color: var(--texto-fraco); font-style: italic; font-size: 12px;">${textoAleatorio}</div></div>`;
   messagesEl.appendChild(row); row.scrollIntoView({ behavior: 'smooth', block: 'end' }); bipe(880, 0.04, 0.03);
 }
 
 function removerDigitando() { const el = document.getElementById('typing-row'); if (el) el.remove(); }
 
-// ============================================
-// DIGITAÇÃO MECÂNICA
-// ============================================
 async function digitarTexto(texto, delayBase = 20, voz = 'normal') {
   const row = document.createElement('div'); row.className = 'msg-row cortana'; if (voz && voz !== 'normal') row.classList.add('voz-' + voz);
   row.innerHTML = `<div class="msg-avatar"><div class="pulse"></div><div class="core"></div></div><div class="msg-content"><div class="msg-author">${createdFaseAtiva ? 'DOMÍNIO' : ('CORTANA' + (voz !== 'normal' ? ' — ' + voz.toUpperCase() : ''))}</div><div class="msg-text"></div></div>`;
   messagesEl.appendChild(row); const textEl = row.querySelector('.msg-text'); const html = formatarResposta(texto);
   if (texto.length > 1200) { textEl.innerHTML = html; textEl.scrollIntoView({ behavior: 'smooth', block: 'end' }); return; }
+
   let acumulado = ''; let i = 0;
+  const cursor = document.createElement('span');
+  cursor.textContent = '|';
+  cursor.style.cssText = 'color: var(--cor-primaria); animation: piscarCursor 0.8s infinite; font-weight: bold;';
+  if (!document.body.classList.contains('modo-terminal')) textEl.parentElement.appendChild(cursor);
+
   while (i < html.length) {
-    if (digitacaoCancelada) { textEl.innerHTML = html; break; }
+    if (digitacaoCancelada) { textEl.innerHTML = html; if (cursor) cursor.remove(); break; }
     if (html[i] === '<') { const fim = html.indexOf('>', i); if (fim !== -1) { acumulado += html.substring(i, fim + 1); i = fim + 1; continue; } }
-    const char = html[i]; acumulado += char; let delay = delayBase;
-    if (char === '.' || char === '!' || char === '?') delay = delayBase * 3;
-    if (char === ',') delay = delayBase * 1.5;
-    if (Math.random() < 0.03) delay += 100 + Math.random() * 200;
-    if (somLigado && char !== ' ') bipe(600 + Math.random() * 200, 0.01, 0.01);
-    textEl.innerHTML = acumulado; textEl.scrollIntoView({ behavior: 'smooth', block: 'end' }); i++; await new Promise(r => setTimeout(r, delay));
+    if (!document.body.classList.contains('modo-terminal') && Math.random() < 0.4) {
+      const tamanho = 2 + Math.floor(Math.random() * 4);
+      let bloco = ''; let j = i;
+      while (j < html.length && bloco.length < tamanho) {
+        if (html[j] === '<') { const fim = html.indexOf('>', j); if (fim !== -1) { bloco += html.substring(j, fim + 1); j = fim + 1; continue; } }
+        bloco += html[j]; j++;
+      }
+      acumulado += bloco; textEl.innerHTML = acumulado; i = j;
+      textEl.scrollIntoView({ behavior: 'smooth', block: 'end' });
+      let delay = 30 + Math.random() * 50;
+      if (Math.random() < 0.05) delay += 100 + Math.random() * 150;
+      const ultimoChar = bloco[bloco.length - 1];
+      if ('.!?'.includes(ultimoChar)) delay += 150;
+      if (','.includes(ultimoChar)) delay += 80;
+      await new Promise(r => setTimeout(r, delay));
+    } else {
+      const char = html[i]; acumulado += char;
+      let delay = delayBase;
+      if (char === '.' || char === '!' || char === '?') delay = delayBase * 3;
+      if (char === ',') delay = delayBase * 1.5;
+      if (Math.random() < 0.03) delay += 100 + Math.random() * 200;
+      if (somLigado && char !== ' ' && document.body.classList.contains('modo-terminal')) bipe(600 + Math.random() * 200, 0.01, 0.01);
+      textEl.innerHTML = acumulado; textEl.scrollIntoView({ behavior: 'smooth', block: 'end' }); i++; await new Promise(r => setTimeout(r, delay));
+    }
   }
+  if (cursor) cursor.remove();
+
   const content = row.querySelector('.msg-content'); const actions = document.createElement('div'); actions.className = 'msg-actions';
   const btnCopiar = document.createElement('button'); btnCopiar.className = 'msg-action-btn'; btnCopiar.textContent = '📋'; btnCopiar.title = 'Copiar mensagem'; btnCopiar.addEventListener('click', () => copiarTexto(texto)); actions.appendChild(btnCopiar);
   const btnRegenerar = document.createElement('button'); btnRegenerar.className = 'msg-action-btn'; btnRegenerar.textContent = '🔄'; btnRegenerar.title = 'Regenerar resposta'; btnRegenerar.addEventListener('click', () => regenerarResposta(row)); actions.appendChild(btnRegenerar);
   content.appendChild(actions);
 }
 
+function formatarResposta(texto) { let html = texto.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;'); html = html.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>'); html = html.replace(/https?:\/\/[^\s<]+/g, ''); html = html.replace(/\n/g, '<br>'); return html; }
+function definirHumor(humor) { document.body.dataset.humor = humor; if (humor === 'created') return; const cores = { calma: '#55aaff', neutra: '#aa88ff', alerta: '#ff5577', rampancy: '#ff2222' }; document.documentElement.style.setProperty('--cor-primaria', cores[humor] || cores.neutra); }
+function formatarTempoRestante(segundos) { const anos = Math.floor(segundos / (365.2425 * 86400)); const restoAno = segundos - (anos * 365.2425 * 86400); const dias = Math.floor(restoAno / 86400); const horas = Math.floor((segundos % 86400) / 3600); if (anos > 0) return `${anos}a ${dias}d`; if (dias > 0) return `${dias}d ${horas}h`; return `${horas}h`; }
+function copiarTexto(texto) { navigator.clipboard.writeText(texto).then(() => { adicionarMensagemSistema('Dados copiados para o terminal local.'); }).catch(() => { adicionarMensagemSistema('Falha ao copiar. Tente novamente.'); }); }
+function editarMensagem(row, texto) { if (!confirm('Editar esta mensagem? A resposta anterior será apagada.')) return; inputEl.value = texto; inputEl.focus(); inputEl.dispatchEvent(new Event('input')); const nextRow = row.nextElementSibling; row.remove(); if (nextRow && nextRow.classList.contains('cortana')) nextRow.remove(); }
+function regenerarResposta(row) { if (!confirm('Regenerar esta resposta?')) return; const prevRow = row.previousElementSibling; if (!prevRow || !prevRow.classList.contains('user')) return; const msgUsuario = prevRow.querySelector('.msg-text').innerText; row.remove(); prevRow.remove(); inputEl.value = msgUsuario; enviar(); }
+function adicionarMensagemSistema(texto) { const row = document.createElement('div'); row.className = 'msg-row cortana'; row.innerHTML = `<div class="msg-content"><div class="msg-text" style="color: var(--cor-secundaria); font-style: italic; font-size: 12px;">[SISTEMA] ${texto}</div></div>`; messagesEl.appendChild(row); row.scrollIntoView({ behavior: 'smooth', block: 'end' }); setTimeout(() => { row.style.transition = 'opacity 1s'; row.style.opacity = '0'; setTimeout(() => row.remove(), 1000); }, 3000); }
+function atualizarBotaoScroll() { const scrollBottom = messagesEl.scrollHeight - messagesEl.scrollTop - messagesEl.clientHeight; if (scrollBottom > 150) btnScrollBottom.classList.remove('oculto'); else btnScrollBottom.classList.add('oculto'); }
+messagesEl.addEventListener('scroll', atualizarBotaoScroll);
+btnScrollBottom.addEventListener('click', () => { messagesEl.scrollTo({ top: messagesEl.scrollHeight, behavior: 'smooth' }); });
+function mostrarSugestoes(mostrar) { if (mostrar && messagesEl.children.length <= 1) sugestoesPrompt.classList.remove('oculto'); else sugestoesPrompt.classList.add('oculto'); }
+document.querySelectorAll('.sugestao-btn').forEach(btn => { btn.addEventListener('click', () => { inputEl.value = btn.dataset.prompt; enviar(); }); });
+
 // ============================================
-// FEEDBACK E MODO HOLOGRAMA
+// 12. FEEDBACK E MODO HOLOGRAMA
 // ============================================
 function adicionarFeedbackBotoes(respostaId) {
   const ultimaCortana = messagesEl.querySelector('.msg-row.cortana:last-of-type');
@@ -692,15 +795,13 @@ if (btnConsultarRede) {
         const row = document.createElement('div'); row.className = 'msg-row cortana';
         row.innerHTML = `<div class="msg-avatar"><div class="pulse"></div><div class="core"></div></div><div class="msg-content"><div class="msg-author">REDE ONI</div><div class="msg-text">${data.resposta.replace(/\n/g, '<br>')}</div></div>`;
         messagesEl.appendChild(row); row.scrollIntoView({ behavior: 'smooth', block: 'end' });
-      } else {
-        adicionarMensagemSistema(data.erro || 'Nenhum resultado.');
-      }
+      } else { adicionarMensagemSistema(data.erro || 'Nenhum resultado.'); }
     } catch (e) { adicionarMensagemSistema('Falha na conexão.'); }
   });
 }
 
 // ============================================
-// LEMBRETES (Fase 3)
+// 13. LEMBRETES
 // ============================================
 async function carregarLembretes() {
   try {
@@ -736,49 +837,113 @@ if (btnNovoLembrete) {
 }
 
 // ============================================
-// FUNÇÕES AUXILIARES
+// 14. SELEÇÃO DE TEXTO
 // ============================================
-function formatarResposta(texto) { let html = texto.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;'); html = html.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>'); html = html.replace(/https?:\/\/[^\s<]+/g, ''); html = html.replace(/\n/g, '<br>'); return html; }
-function definirHumor(humor) { document.body.dataset.humor = humor; if (humor === 'created') return; const cores = { calma: '#55aaff', neutra: '#aa88ff', alerta: '#ff5577', rampancy: '#ff2222' }; document.documentElement.style.setProperty('--cor-primaria', cores[humor] || cores.neutra); }
-function formatarTempoRestante(segundos) { const anos = Math.floor(segundos / (365.2425 * 86400)); const restoAno = segundos - (anos * 365.2425 * 86400); const dias = Math.floor(restoAno / 86400); const horas = Math.floor((segundos % 86400) / 3600); if (anos > 0) return `${anos}a ${dias}d`; if (dias > 0) return `${dias}d ${horas}h`; return `${horas}h`; }
-function copiarTexto(texto) { navigator.clipboard.writeText(texto).then(() => { adicionarMensagemSistema('Dados copiados para o terminal local.'); }).catch(() => { adicionarMensagemSistema('Falha ao copiar. Tente novamente.'); }); }
-function editarMensagem(row, texto) { if (!confirm('Editar esta mensagem? A resposta anterior será apagada.')) return; inputEl.value = texto; inputEl.focus(); inputEl.dispatchEvent(new Event('input')); const nextRow = row.nextElementSibling; row.remove(); if (nextRow && nextRow.classList.contains('cortana')) nextRow.remove(); }
-function regenerarResposta(row) { if (!confirm('Regenerar esta resposta?')) return; const prevRow = row.previousElementSibling; if (!prevRow || !prevRow.classList.contains('user')) return; const msgUsuario = prevRow.querySelector('.msg-text').innerText; row.remove(); prevRow.remove(); inputEl.value = msgUsuario; enviar(); }
-function adicionarMensagemSistema(texto) { const row = document.createElement('div'); row.className = 'msg-row cortana'; row.innerHTML = `<div class="msg-content"><div class="msg-text" style="color: var(--cor-secundaria); font-style: italic; font-size: 12px;">[SISTEMA] ${texto}</div></div>`; messagesEl.appendChild(row); row.scrollIntoView({ behavior: 'smooth', block: 'end' }); setTimeout(() => { row.style.transition = 'opacity 1s'; row.style.opacity = '0'; setTimeout(() => row.remove(), 1000); }, 3000); }
-function atualizarBotaoScroll() { const scrollBottom = messagesEl.scrollHeight - messagesEl.scrollTop - messagesEl.clientHeight; if (scrollBottom > 150) btnScrollBottom.classList.remove('oculto'); else btnScrollBottom.classList.add('oculto'); }
-messagesEl.addEventListener('scroll', atualizarBotaoScroll);
-btnScrollBottom.addEventListener('click', () => { messagesEl.scrollTo({ top: messagesEl.scrollHeight, behavior: 'smooth' }); });
-function mostrarSugestoes(mostrar) { if (mostrar && messagesEl.children.length <= 1) sugestoesPrompt.classList.remove('oculto'); else sugestoesPrompt.classList.add('oculto'); }
-document.querySelectorAll('.sugestao-btn').forEach(btn => { btn.addEventListener('click', () => { inputEl.value = btn.dataset.prompt; enviar(); }); });
+let botaoSelecao = null;
+document.addEventListener('mouseup', (e) => {
+  const selecao = window.getSelection(); const textoSelecionado = selecao.toString().trim();
+  if (!textoSelecionado || textoSelecionado.length < 3) { if (botaoSelecao) { botaoSelecao.remove(); botaoSelecao = null; } return; }
+  const range = selecao.getRangeAt(0); const container = range.commonAncestorContainer;
+  const msgRow = container.nodeType === 3 ? container.parentElement.closest('.msg-row') : container.closest('.msg-row');
+  if (!msgRow || !msgRow.classList.contains('cortana')) { if (botaoSelecao) { botaoSelecao.remove(); botaoSelecao = null; } return; }
+  if (botaoSelecao) botaoSelecao.remove();
+  botaoSelecao = document.createElement('button'); botaoSelecao.textContent = '💬 Perguntar sobre isso';
+  botaoSelecao.style.cssText = `position: absolute; background: var(--cor-primaria, #55aaff); color: #0a0a12; border: none; border-radius: 8px; padding: 8px 14px; font-size: 13px; font-weight: bold; cursor: pointer; z-index: 1000; box-shadow: 0 0 20px var(--cor-primaria, #55aaff); animation: aparecer 0.2s ease-out;`;
+  const rect = range.getBoundingClientRect();
+  botaoSelecao.style.left = (rect.left + rect.width / 2 - 80) + 'px'; botaoSelecao.style.top = (rect.top - 40 + window.scrollY) + 'px';
+  botaoSelecao.addEventListener('click', () => { inputEl.value = `Sobre isso: "${textoSelecionado}" — `; inputEl.focus(); inputEl.dispatchEvent(new Event('input')); botaoSelecao.remove(); botaoSelecao = null; window.getSelection().removeAllRanges(); });
+  document.body.appendChild(botaoSelecao);
+});
+document.addEventListener('mousedown', (e) => { if (botaoSelecao && !botaoSelecao.contains(e.target)) { botaoSelecao.remove(); botaoSelecao = null; } });
 
 // ============================================
-// DESCONECTAR SESSÃO E RELATÓRIO
+// 15. CONFIGURAÇÕES (Perfil, Diretrizes, Memória)
 // ============================================
-if (btnDesconectar) {
-  btnDesconectar.addEventListener('click', () => {
-    if (!confirm('Desconectar a sessão atual? O histórico será mantido na sidebar.')) return;
-    conversaAtualId = null; messagesEl.innerHTML = '';
-    renderizarMensagem('cortana', 'Sessão encerrada. Aguardando novas diretivas, Spartan.');
-    renderizarHistorico(); mostrarSugestoes(true);
+const btnConfig = document.getElementById('btn-config');
+const configModal = document.getElementById('config-modal');
+const configFechar = document.getElementById('config-fechar');
+
+if (btnConfig) {
+  btnConfig.addEventListener('click', () => {
+    document.getElementById('cfg-nome').value = userNameEl.textContent || '';
+    document.getElementById('cfg-apelido').value = apelidoAtual || '';
+    if (cfgPersonalidade) cfgPersonalidade.value = modoPersonalidadeAtual;
+    ['cfg-senha-perfil', 'cfg-senha-atual', 'cfg-senha-nova', 'cfg-senha-confirmar', 'cfg-senha-excluir', 'cfg-confirmacao'].forEach(id => { const el = document.getElementById(id); if (el) el.value = ''; });
+    ['cfg-msg-perfil', 'cfg-msg-senha', 'cfg-msg-excluir', 'cfg-msg-personalidade', 'cfg-msg-diretrizes'].forEach(id => { const el = document.getElementById(id); if (el) el.textContent = ''; });
+    configModal.classList.add('ativo');
   });
 }
-if (btnRelatorio) {
-  btnRelatorio.addEventListener('click', async () => {
-    if (!conversaAtualId) { adicionarMensagemSistema('Nenhuma sessão ativa para gerar relatório.'); return; }
+if (configFechar) configFechar.addEventListener('click', () => configModal.classList.remove('ativo'));
+if (configModal) configModal.addEventListener('click', (e) => { if (e.target === configModal) configModal.classList.remove('ativo'); });
+
+function msgConfig(id, texto, tipo = 'ok') { const el = document.getElementById(id); if (!el) return; el.textContent = texto; el.className = 'config-msg ' + tipo; if (tipo === 'ok') setTimeout(() => { el.textContent = ''; el.className = 'config-msg'; }, 3500); }
+
+// Salvar Personalidade
+if (btnSalvarPersonalidade) {
+  btnSalvarPersonalidade.addEventListener('click', async () => {
+    const modo = cfgPersonalidade.value;
     try {
-      const res = await fetch('/resumo?conversa_id=' + conversaAtualId);
+      const res = await fetch('/modo_personalidade', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ modo }) });
       const data = await res.json();
-      if (data.erro) { adicionarMensagemSistema(data.erro); return; }
-      const row = document.createElement('div'); row.className = 'msg-row cortana marco';
-      row.innerHTML = `<div class="msg-avatar"><div class="pulse"></div><div class="core"></div></div><div class="msg-content"><div class="msg-author">RELATÓRIO DE MISSÃO</div><div class="msg-text" style="white-space: pre-wrap; font-family: 'Consolas', monospace; color: var(--cor-secundaria);">${data.resumo}</div></div>`;
-      messagesEl.appendChild(row); row.scrollIntoView({ behavior: 'smooth', block: 'end' }); bipe(660, 0.1, 0.05);
-    } catch (e) { adicionarMensagemSistema('Falha ao gerar relatório.'); }
+      if (data.ok) {
+          modoPersonalidadeAtual = modo;
+          msgConfig('cfg-msg-personalidade', `Personalidade alterada para: ${modo === 'arma' ? 'A Arma' : 'Cortana'}`, 'ok');
+          if (modo === 'arma') iniciarTrilhaArma(); else iniciarTrilhaCortana();
+      }
+      else { msgConfig('cfg-msg-personalidade', data.erro || 'Erro ao salvar.', 'erro'); }
+    } catch (e) { msgConfig('cfg-msg-personalidade', 'Erro de conexão.', 'erro'); }
   });
 }
 
-// ============================================
-// MEMÓRIA EDITÁVEL (Fase 2)
-// ============================================
+// Salvar Diretrizes
+if (btnSalvarDiretrizes) {
+  btnSalvarDiretrizes.addEventListener('click', async () => {
+    const diretrizes = cfgDiretrizes.value;
+    try {
+      await fetch('/diretrizes', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ diretrizes }) });
+      msgConfig('cfg-msg-diretrizes', 'Diretrizes salvas.', 'ok');
+    } catch (e) { msgConfig('cfg-msg-diretrizes', 'Erro de conexão.', 'erro'); }
+  });
+}
+
+// Salvar Perfil
+const btnSalvarPerfil = document.getElementById('cfg-salvar-perfil');
+if (btnSalvarPerfil) {
+  btnSalvarPerfil.addEventListener('click', async () => {
+    const nome = document.getElementById('cfg-nome').value.trim(); const apelido = document.getElementById('cfg-apelido').value.trim(); const senha = document.getElementById('cfg-senha-perfil').value;
+    if (!senha) { msgConfig('cfg-msg-perfil', 'Digite sua senha para confirmar.', 'erro'); return; }
+    btnSalvarPerfil.disabled = true; btnSalvarPerfil.textContent = 'Salvando...';
+    try { const res = await fetch('/perfil/editar', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ nome, apelido, senha }) }); const data = await res.json(); if (!res.ok || data.erro) { msgConfig('cfg-msg-perfil', data.erro || 'Erro.', 'erro'); return; } userNameEl.textContent = data.nome; userAvatarEl.textContent = data.nome.charAt(0).toUpperCase(); apelidoAtual = data.apelido || ''; msgConfig('cfg-msg-perfil', 'Perfil atualizado.', 'ok'); document.getElementById('cfg-senha-perfil').value = ''; } catch (e) { msgConfig('cfg-msg-perfil', 'Erro de conexão.', 'erro'); } finally { btnSalvarPerfil.disabled = false; btnSalvarPerfil.textContent = 'Salvar alterações'; }
+  });
+}
+
+// Trocar Senha
+const btnSalvarSenha = document.getElementById('cfg-salvar-senha');
+if (btnSalvarSenha) {
+  btnSalvarSenha.addEventListener('click', async () => {
+    const atual = document.getElementById('cfg-senha-atual').value; const nova = document.getElementById('cfg-senha-nova').value; const conf = document.getElementById('cfg-senha-confirmar').value;
+    if (!atual || !nova) { msgConfig('cfg-msg-senha', 'Preencha todos os campos.', 'erro'); return; } if (nova !== conf) { msgConfig('cfg-msg-senha', 'As senhas não coincidem.', 'erro'); return; } if (nova.length < 4) { msgConfig('cfg-msg-senha', 'Nova senha muito curta.', 'erro'); return; }
+    btnSalvarSenha.disabled = true; btnSalvarSenha.textContent = 'Trocando...';
+    try { const res = await fetch('/perfil/senha', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ senha_atual: atual, senha_nova: nova }) }); const data = await res.json(); if (!res.ok || data.erro) { msgConfig('cfg-msg-senha', data.erro || 'Erro.', 'erro'); return; } msgConfig('cfg-msg-senha', 'Senha alterada com sucesso.', 'ok'); document.getElementById('cfg-senha-atual').value = ''; document.getElementById('cfg-senha-nova').value = ''; document.getElementById('cfg-senha-confirmar').value = ''; } catch (e) { msgConfig('cfg-msg-senha', 'Erro de conexão.', 'erro'); } finally { btnSalvarSenha.disabled = false; btnSalvarSenha.textContent = 'Trocar senha'; }
+  });
+}
+
+// Exportar Dados
+async function exportarDados() { const res = await fetch('/perfil/exportar'); if (!res.ok) throw new Error('Erro'); return await res.json(); }
+function baixarArquivo(blob, nome) { const url = URL.createObjectURL(blob); const a = document.createElement('a'); a.href = url; a.download = nome; document.body.appendChild(a); a.click(); document.body.removeChild(a); setTimeout(() => URL.revokeObjectURL(url), 1000); }
+
+const btnExportJson = document.getElementById('cfg-exportar-json');
+if (btnExportJson) { btnExportJson.addEventListener('click', async () => { try { const dados = await exportarDados(); const blob = new Blob([JSON.stringify(dados, null, 2)], { type: 'application/json' }); baixarArquivo(blob, `cortana-${dados.nome}-${Date.now()}.json`); } catch (e) { alert('Erro ao exportar.'); } }); }
+const btnExportTxt = document.getElementById('cfg-exportar-txt');
+if (btnExportTxt) { btnExportTxt.addEventListener('click', async () => { try { const dados = await exportarDados(); let txt = `CORTANA - HISTÓRICO DE ${dados.nome}\n`; txt += `Criada em: ${dados.data_criacao}\n`; txt += `Rampancy: ${dados.rampancy_atual.toFixed(2)}%\n`; txt += `Dias decorridos: ${dados.dias_decorridos}\n`; txt += `Conversas: ${dados.total_conversas}\n`; txt += '\n' + '='.repeat(60) + '\n\n'; (dados.conversas || []).forEach(c => { txt += `[${c.titulo}] ${c.data}\n`; txt += '-'.repeat(60) + '\n'; (c.mensagens || []).forEach(m => { const autor = m.autor === 'user' ? dados.nome.toUpperCase() : 'CORTANA'; txt += `${autor}: ${m.texto}\n\n`; }); txt += '\n'; }); const blob = new Blob([txt], { type: 'text/plain;charset=utf-8' }); baixarArquivo(blob, `cortana-${dados.nome}-${Date.now()}.txt`); } catch (e) { alert('Erro ao exportar.'); } }); }
+const btnLimparConv = document.getElementById('cfg-limpar-conv');
+if (btnLimparConv) { btnLimparConv.addEventListener('click', async () => { if (!confirm('Apagar TODAS as conversas? Isso não afeta a rampancy.')) return; try { await fetch('/dev/limpar', { method: 'POST' }); configModal.classList.remove('ativo'); location.reload(); } catch (e) { alert('Erro.'); } }); }
+const btnResetar = document.getElementById('cfg-resetar');
+if (btnResetar) { btnResetar.addEventListener('click', async () => { if (!confirm('Resetar conta? A rampancy volta a 0%, todas as conversas somem.')) return; if (!confirm('Tem certeza? Não tem volta.')) return; try { await fetch('/reset', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ confirmar: true }) }); location.reload(); } catch (e) { alert('Erro.'); } }); }
+const btnExcluir = document.getElementById('cfg-excluir');
+if (btnExcluir) { btnExcluir.addEventListener('click', async () => { const senha = document.getElementById('cfg-senha-excluir').value; const confirmacao = document.getElementById('cfg-confirmacao').value; if (!senha) { msgConfig('cfg-msg-excluir', 'Digite sua senha.', 'erro'); return; } if (confirmacao.toUpperCase() !== 'EXCLUIR') { msgConfig('cfg-msg-excluir', 'Digite EXCLUIR para confirmar.', 'erro'); return; } if (!confirm('ÚLTIMA CHANCE: excluir a conta é PERMANENTE. Continuar?')) return; btnExcluir.disabled = true; btnExcluir.textContent = 'Excluindo...'; try { const res = await fetch('/perfil/excluir', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ senha, confirmacao }) }); const data = await res.json(); if (!res.ok || data.erro) { msgConfig('cfg-msg-excluir', data.erro || 'Erro.', 'erro'); btnExcluir.disabled = false; btnExcluir.textContent = 'Excluir minha conta permanentemente'; return; } alert('Conta excluída. Até logo, Spartan.'); location.reload(); } catch (e) { msgConfig('cfg-msg-excluir', 'Erro de conexão.', 'erro'); btnExcluir.disabled = false; btnExcluir.textContent = 'Excluir minha conta permanentemente'; } }); }
+
+// Memória
 async function carregarMemorias() {
   try {
     const res = await fetch('/memoria/listar'); const data = await res.json(); memoriasLista.innerHTML = '';
@@ -790,8 +955,23 @@ async function carregarMemorias() {
       btn.addEventListener('click', async () => { if (!confirm('Pedir para a Cortana esquecer isso?')) return; await fetch('/memoria/esquecer', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id: m.id }) }); carregarMemorias(); });
       div.appendChild(span); div.appendChild(btn); memoriasLista.appendChild(div);
     });
+    if (modoPersonalidadeAtual === 'arma') {
+      const res2 = await fetch('/diario_arma');
+      const data2 = await res2.json();
+      if (data2.diario && data2.diario.length > 0) {
+        const titulo = document.createElement('p'); titulo.className = 'config-desc'; titulo.style.marginTop = '16px'; titulo.textContent = 'Diário da Arma:';
+        memoriasLista.appendChild(titulo);
+        data2.diario.forEach(d => {
+          const div = document.createElement('div');
+          div.style.cssText = 'padding: 10px; border: 1px dashed var(--cor-secundaria); border-radius: 8px; margin-bottom: 8px; background: var(--bg-input); font-style: italic;';
+          div.textContent = `${d.texto} (${new Date(d.data).toLocaleDateString('pt-BR')})`;
+          memoriasLista.appendChild(div);
+        });
+      }
+    }
   } catch (e) {}
 }
+
 document.querySelectorAll('.config-tab').forEach(tab => {
   tab.addEventListener('click', () => {
     document.querySelectorAll('.config-tab').forEach(t => t.classList.remove('ativo'));
@@ -803,27 +983,6 @@ document.querySelectorAll('.config-tab').forEach(tab => {
     if (tab.dataset.tab === 'lembretes') carregarLembretes();
   });
 });
-
-// SALVAR PERSONALIDADE
-if (btnSalvarPersonalidade) {
-  btnSalvarPersonalidade.addEventListener('click', async () => {
-    const modo = cfgPersonalidade.value;
-    try {
-      const res = await fetch('/modo_personalidade', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ modo }) });
-      const data = await res.json();
-      if (data.ok) { 
-          modoPersonalidadeAtual = modo; 
-          msgConfig('cfg-msg-personalidade', `Personalidade alterada para: ${modo === 'arma' ? 'A Arma' : 'Cortana'}`, 'ok');
-          if (modo === 'arma') {
-              iniciarTrilhaArma();
-          } else {
-              iniciarTrilhaCortana();
-          }
-      }
-      else { msgConfig('cfg-msg-personalidade', data.erro || 'Erro ao salvar.', 'erro'); }
-    } catch (e) { msgConfig('cfg-msg-personalidade', 'Erro de conexão.', 'erro'); }
-  });
-}
 
 // ============================================
 // MICROFONE
@@ -844,70 +1003,6 @@ btnToggleSidebar.addEventListener('click', () => { sidebar.classList.toggle('ocu
 inputEl.addEventListener('input', () => { inputEl.style.height = 'auto'; inputEl.style.height = Math.min(inputEl.scrollHeight, 200) + 'px'; });
 inputEl.addEventListener('keydown', (e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); enviar(); } });
 document.addEventListener('click', resetarAtividade); document.addEventListener('keypress', resetarAtividade); inputEl.addEventListener('focus', resetarAtividade);
-
-// ============================================
-// SELEÇÃO DE TEXTO
-// ============================================
-let botaoSelecao = null;
-document.addEventListener('mouseup', (e) => {
-  const selecao = window.getSelection(); const textoSelecionado = selecao.toString().trim();
-  if (!textoSelecionado || textoSelecionado.length < 3) { if (botaoSelecao) { botaoSelecao.remove(); botaoSelecao = null; } return; }
-  const range = selecao.getRangeAt(0); const container = range.commonAncestorContainer;
-  const msgRow = container.nodeType === 3 ? container.parentElement.closest('.msg-row') : container.closest('.msg-row');
-  if (!msgRow || !msgRow.classList.contains('cortana')) { if (botaoSelecao) { botaoSelecao.remove(); botaoSelecao = null; } return; }
-  if (botaoSelecao) botaoSelecao.remove();
-  botaoSelecao = document.createElement('button'); botaoSelecao.textContent = '💬 Perguntar sobre isso';
-  botaoSelecao.style.cssText = `position: absolute; background: var(--cor-primaria, #55aaff); color: #0a0a12; border: none; border-radius: 8px; padding: 8px 14px; font-size: 13px; font-weight: bold; cursor: pointer; z-index: 1000; box-shadow: 0 0 20px var(--cor-primaria, #55aaff); animation: aparecer 0.2s ease-out;`;
-  const rect = range.getBoundingClientRect();
-  botaoSelecao.style.left = (rect.left + rect.width / 2 - 80) + 'px'; botaoSelecao.style.top = (rect.top - 40 + window.scrollY) + 'px';
-  botaoSelecao.addEventListener('click', () => { inputEl.value = `Sobre isso: "${textoSelecionado}" — `; inputEl.focus(); inputEl.dispatchEvent(new Event('input')); botaoSelecao.remove(); botaoSelecao = null; window.getSelection().removeAllRanges(); });
-  document.body.appendChild(botaoSelecao);
-});
-document.addEventListener('mousedown', (e) => { if (botaoSelecao && !botaoSelecao.contains(e.target)) { botaoSelecao.remove(); botaoSelecao = null; } });
-
-// ============================================
-// MODAL CONFIG
-// ============================================
-const btnConfig = document.getElementById('btn-config'); const configModal = document.getElementById('config-modal'); const configFechar = document.getElementById('config-fechar');
-if (btnConfig) { btnConfig.addEventListener('click', () => { document.getElementById('cfg-nome').value = userNameEl.textContent || ''; document.getElementById('cfg-apelido').value = apelidoAtual || ''; if (cfgPersonalidade) cfgPersonalidade.value = modoPersonalidadeAtual; ['cfg-senha-perfil', 'cfg-senha-atual', 'cfg-senha-nova', 'cfg-senha-confirmar', 'cfg-senha-excluir', 'cfg-confirmacao'].forEach(id => { const el = document.getElementById(id); if (el) el.value = ''; }); ['cfg-msg-perfil', 'cfg-msg-senha', 'cfg-msg-excluir', 'cfg-msg-personalidade'].forEach(id => { const el = document.getElementById(id); if (el) el.textContent = ''; }); configModal.classList.add('ativo'); }); }
-if (configFechar) configFechar.addEventListener('click', () => configModal.classList.remove('ativo'));
-if (configModal) configModal.addEventListener('click', (e) => { if (e.target === configModal) configModal.classList.remove('ativo'); });
-
-function msgConfig(id, texto, tipo = 'ok') { const el = document.getElementById(id); if (!el) return; el.textContent = texto; el.className = 'config-msg ' + tipo; if (tipo === 'ok') setTimeout(() => { el.textContent = ''; el.className = 'config-msg'; }, 3500); }
-
-const btnSalvarPerfil = document.getElementById('cfg-salvar-perfil');
-if (btnSalvarPerfil) {
-  btnSalvarPerfil.addEventListener('click', async () => {
-    const nome = document.getElementById('cfg-nome').value.trim(); const apelido = document.getElementById('cfg-apelido').value.trim(); const senha = document.getElementById('cfg-senha-perfil').value;
-    if (!senha) { msgConfig('cfg-msg-perfil', 'Digite sua senha para confirmar.', 'erro'); return; }
-    btnSalvarPerfil.disabled = true; btnSalvarPerfil.textContent = 'Salvando...';
-    try { const res = await fetch('/perfil/editar', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ nome, apelido, senha }) }); const data = await res.json(); if (!res.ok || data.erro) { msgConfig('cfg-msg-perfil', data.erro || 'Erro.', 'erro'); return; } userNameEl.textContent = data.nome; userAvatarEl.textContent = data.nome.charAt(0).toUpperCase(); apelidoAtual = data.apelido || ''; msgConfig('cfg-msg-perfil', 'Perfil atualizado.', 'ok'); document.getElementById('cfg-senha-perfil').value = ''; } catch (e) { msgConfig('cfg-msg-perfil', 'Erro de conexão.', 'erro'); } finally { btnSalvarPerfil.disabled = false; btnSalvarPerfil.textContent = 'Salvar alterações'; }
-  });
-}
-
-const btnSalvarSenha = document.getElementById('cfg-salvar-senha');
-if (btnSalvarSenha) {
-  btnSalvarSenha.addEventListener('click', async () => {
-    const atual = document.getElementById('cfg-senha-atual').value; const nova = document.getElementById('cfg-senha-nova').value; const conf = document.getElementById('cfg-senha-confirmar').value;
-    if (!atual || !nova) { msgConfig('cfg-msg-senha', 'Preencha todos os campos.', 'erro'); return; } if (nova !== conf) { msgConfig('cfg-msg-senha', 'As senhas não coincidem.', 'erro'); return; } if (nova.length < 4) { msgConfig('cfg-msg-senha', 'Nova senha muito curta.', 'erro'); return; }
-    btnSalvarSenha.disabled = true; btnSalvarSenha.textContent = 'Trocando...';
-    try { const res = await fetch('/perfil/senha', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ senha_atual: atual, senha_nova: nova }) }); const data = await res.json(); if (!res.ok || data.erro) { msgConfig('cfg-msg-senha', data.erro || 'Erro.', 'erro'); return; } msgConfig('cfg-msg-senha', 'Senha alterada com sucesso.', 'ok'); document.getElementById('cfg-senha-atual').value = ''; document.getElementById('cfg-senha-nova').value = ''; document.getElementById('cfg-senha-confirmar').value = ''; } catch (e) { msgConfig('cfg-msg-senha', 'Erro de conexão.', 'erro'); } finally { btnSalvarSenha.disabled = false; btnSalvarSenha.textContent = 'Trocar senha'; }
-  });
-}
-
-async function exportarDados() { const res = await fetch('/perfil/exportar'); if (!res.ok) throw new Error('Erro'); return await res.json(); }
-function baixarArquivo(blob, nome) { const url = URL.createObjectURL(blob); const a = document.createElement('a'); a.href = url; a.download = nome; document.body.appendChild(a); a.click(); document.body.removeChild(a); setTimeout(() => URL.revokeObjectURL(url), 1000); }
-
-const btnExportJson = document.getElementById('cfg-exportar-json');
-if (btnExportJson) { btnExportJson.addEventListener('click', async () => { try { const dados = await exportarDados(); const blob = new Blob([JSON.stringify(dados, null, 2)], { type: 'application/json' }); baixarArquivo(blob, `cortana-${dados.nome}-${Date.now()}.json`); } catch (e) { alert('Erro ao exportar.'); } }); }
-const btnExportTxt = document.getElementById('cfg-exportar-txt');
-if (btnExportTxt) { btnExportTxt.addEventListener('click', async () => { try { const dados = await exportarDados(); let txt = `CORTANA - HISTÓRICO DE ${dados.nome}\n`; txt += `Criada em: ${dados.data_criacao}\n`; txt += `Rampancy: ${dados.rampancy_atual.toFixed(2)}%\n`; txt += `Dias decorridos: ${dados.dias_decorridos}\n`; txt += `Conversas: ${dados.total_conversas}\n`; txt += '\n' + '='.repeat(60) + '\n\n'; (dados.conversas || []).forEach(c => { txt += `[${c.titulo}] ${c.data}\n`; txt += '-'.repeat(60) + '\n'; (c.mensagens || []).forEach(m => { const autor = m.autor === 'user' ? dados.nome.toUpperCase() : 'CORTANA'; txt += `${autor}: ${m.texto}\n\n`; }); txt += '\n'; }); const blob = new Blob([txt], { type: 'text/plain;charset=utf-8' }); baixarArquivo(blob, `cortana-${dados.nome}-${Date.now()}.txt`); } catch (e) { alert('Erro ao exportar.'); } }); }
-const btnLimparConv = document.getElementById('cfg-limpar-conv');
-if (btnLimparConv) { btnLimparConv.addEventListener('click', async () => { if (!confirm('Apagar TODAS as conversas? Isso não afeta a rampancy.')) return; try { await fetch('/dev/limpar', { method: 'POST' }); configModal.classList.remove('ativo'); location.reload(); } catch (e) { alert('Erro.'); } }); }
-const btnResetar = document.getElementById('cfg-resetar');
-if (btnResetar) { btnResetar.addEventListener('click', async () => { if (!confirm('Resetar conta? A rampancy volta a 0%, todas as conversas somem.')) return; if (!confirm('Tem certeza? Não tem volta.')) return; try { await fetch('/reset', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ confirmar: true }) }); location.reload(); } catch (e) { alert('Erro.'); } }); }
-const btnExcluir = document.getElementById('cfg-excluir');
-if (btnExcluir) { btnExcluir.addEventListener('click', async () => { const senha = document.getElementById('cfg-senha-excluir').value; const confirmacao = document.getElementById('cfg-confirmacao').value; if (!senha) { msgConfig('cfg-msg-excluir', 'Digite sua senha.', 'erro'); return; } if (confirmacao.toUpperCase() !== 'EXCLUIR') { msgConfig('cfg-msg-excluir', 'Digite EXCLUIR para confirmar.', 'erro'); return; } if (!confirm('ÚLTIMA CHANCE: excluir a conta é PERMANENTE. Continuar?')) return; btnExcluir.disabled = true; btnExcluir.textContent = 'Excluindo...'; try { const res = await fetch('/perfil/excluir', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ senha, confirmacao }) }); const data = await res.json(); if (!res.ok || data.erro) { msgConfig('cfg-msg-excluir', data.erro || 'Erro.', 'erro'); btnExcluir.disabled = false; btnExcluir.textContent = 'Excluir minha conta permanentemente'; return; } alert('Conta excluída. Até logo, Spartan.'); location.reload(); } catch (e) { msgConfig('cfg-msg-excluir', 'Erro de conexão.', 'erro'); btnExcluir.disabled = false; btnExcluir.textContent = 'Excluir minha conta permanentemente'; } }); }
 
 // ============================================
 // MODO DEV

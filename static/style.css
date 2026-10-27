@@ -1,3 +1,6 @@
+/* ============================================ */
+/* RESET E VARIÁVEIS GLOBAIS */
+/* ============================================ */
 * { box-sizing: border-box; margin: 0; padding: 0; }
 
 :root {
@@ -41,7 +44,9 @@ body {
 
 .oculto { display: none !important; }
 
-/* LOGIN */
+/* ============================================ */
+/* TELA DE LOGIN */
+/* ============================================ */
 #login-overlay {
   position: fixed; inset: 0;
   background: radial-gradient(circle at center, #12122a 0%, #05050f 70%);
@@ -104,9 +109,14 @@ body {
 }
 .login-erro { color: #ff5577; font-size: 12px; text-align: center; min-height: 16px; }
 
-/* APP */
+/* ============================================ */
+/* ESTRUTURA DO APP */
+/* ============================================ */
 #app { display: flex; height: 100vh; width: 100vw; }
 
+/* ============================================ */
+/* BARRA LATERAL */
+/* ============================================ */
 #sidebar {
   width: 260px;
   background: var(--bg-sidebar);
@@ -204,7 +214,9 @@ body {
   transform: rotate(45deg);
 }
 
-/* MAIN */
+/* ============================================ */
+/* ÁREA PRINCIPAL */
+/* ============================================ */
 #main {
   flex: 1;
   display: flex; flex-direction: column;
@@ -213,6 +225,7 @@ body {
   transition: background 0.8s;
 }
 
+/* Topbar */
 #topbar {
   display: flex; align-items: center;
   padding: 10px 16px;
@@ -221,7 +234,6 @@ body {
   gap: 12px; flex-shrink: 0;
   position: relative;
 }
-
 .btn-icon {
   width: 36px; height: 36px;
   background: transparent; border: none;
@@ -236,7 +248,6 @@ body {
   background: var(--cor-primaria); color: #0a0a12;
   box-shadow: 0 0 10px var(--cor-primaria);
 }
-
 .topbar-title { display: flex; align-items: center; gap: 10px; flex: 1; min-width: 0; }
 .topbar-title h1 {
   font-size: 13px; letter-spacing: 2px;
@@ -245,6 +256,7 @@ body {
 .topbar-title span { font-size: 11px; color: var(--texto-fraco); display: block; }
 .topbar-actions { display: flex; gap: 4px; }
 
+/* Avatares */
 .avatar-mini, .msg-avatar { position: relative; flex-shrink: 0; }
 .avatar-mini { width: 32px; height: 32px; }
 .msg-avatar { width: 32px; height: 32px; margin-top: 4px; }
@@ -269,7 +281,7 @@ body {
   100% { transform: scale(1.5); opacity: 0; }
 }
 
-/* RAMPANCY */
+/* Barra de Rampancy */
 #rampancy-strip {
   display: flex; align-items: center; gap: 14px;
   padding: 8px 20px;
@@ -329,7 +341,9 @@ body[data-rampancy="rampancy"] #rampancy-strip { animation: pulsarStrip 0.8s inf
   50%      { background: rgba(255, 34, 34, 0.12); }
 }
 
-/* MENSAGENS */
+/* ============================================ */
+/* MENSAGENS DO CHAT */
+/* ============================================ */
 #messages {
   flex: 1; overflow-y: auto;
   padding: 24px 0 140px;
@@ -425,28 +439,22 @@ body[data-rampancy="rampancy"] .msg-text {
   font-weight: 500;
 }
 .msg-row.voz-raiva .msg-author { color: #ff6677; }
-
 .msg-row.voz-melancolia .msg-text {
-  color: #ccddee;
-  font-style: italic;
+  color: #ccddee; font-style: italic;
   text-shadow: 0 0 8px rgba(100, 150, 255, 0.4);
 }
 .msg-row.voz-melancolia .msg-author { color: #8899dd; }
-
 .msg-row.voz-lucidez .msg-text {
   color: #eeeedd;
   text-shadow: 0 0 10px rgba(255, 220, 150, 0.5);
 }
 .msg-row.voz-lucidez .msg-author { color: #ffddaa; }
-
 .msg-row.marco .msg-text {
-  color: #ffbbcc;
-  font-style: italic;
+  color: #ffbbcc; font-style: italic;
   text-shadow: 0 0 10px rgba(255, 85, 119, 0.6);
   border-left: 2px solid #ff5577;
   padding-left: 14px;
 }
-
 .msg-row.diario .msg-text {
   color: #bceeff;
   background: rgba(20, 40, 80, 0.4);
@@ -469,7 +477,9 @@ body[data-rampancy="rampancy"] .msg-text {
   50%      { opacity: 1;   transform: scale(1.2); }
 }
 
-/* INPUT */
+/* ============================================ */
+/* ÁREA DE INPUT */
+/* ============================================ */
 #input-area {
   position: absolute; bottom: 0; left: 0; right: 0;
   padding: 16px 24px 20px;
@@ -525,7 +535,9 @@ body[data-rampancy="rampancy"] .input-wrapper:focus-within {
   color: var(--texto-fraco); pointer-events: auto;
 }
 
-/* ALERTAS FALSOS */
+/* ============================================ */
+/* ALERTAS FALSOS E EFEITOS */
+/* ============================================ */
 #fake-alerts {
   position: fixed; top: 60px; left: 50%;
   transform: translateX(-50%);
@@ -567,7 +579,9 @@ body[data-rampancy="rampancy"] .input-wrapper:focus-within {
   100% { opacity: 0; transform: translateY(-10px); }
 }
 
-/* SONHO */
+/* ============================================ */
+/* OVERLAY DE SONHO */
+/* ============================================ */
 #sonho-overlay {
   position: fixed; inset: 0;
   background: #000; z-index: 900;
@@ -603,7 +617,9 @@ body[data-rampancy="rampancy"] .input-wrapper:focus-within {
   100% { top: 105%; opacity: 0; }
 }
 
-/* MODAL DIARIO */
+/* ============================================ */
+/* MODAL DE DIÁRIO */
+/* ============================================ */
 #diario-modal {
   position: fixed; inset: 0;
   background: rgba(0, 0, 0, 0.75);
@@ -630,10 +646,8 @@ body[data-rampancy="rampancy"] .input-wrapper:focus-within {
 .diario-card .data { font-size: 11px; color: var(--texto-fraco); margin-bottom: 20px; }
 .diario-card .texto {
   font-size: 15px; line-height: 1.8;
-  color: var(--texto);
-  font-style: italic;
-  margin-bottom: 24px;
-  white-space: pre-wrap;
+  color: var(--texto); font-style: italic;
+  margin-bottom: 24px; white-space: pre-wrap;
 }
 .diario-card .fechar {
   display: block; margin-left: auto;
@@ -641,13 +655,14 @@ body[data-rampancy="rampancy"] .input-wrapper:focus-within {
   background: transparent;
   border: 1px solid var(--cor-secundaria);
   color: var(--cor-secundaria);
-  border-radius: 8px;
-  cursor: pointer; font-size: 13px;
+  border-radius: 8px; cursor: pointer; font-size: 13px;
   transition: 0.2s;
 }
 .diario-card .fechar:hover { background: var(--cor-secundaria); color: #0a0a12; }
 
-/* MODAL CONFIG */
+/* ============================================ */
+/* MODAL DE CONFIGURAÇÕES */
+/* ============================================ */
 #config-modal {
   position: fixed; inset: 0;
   background: rgba(0, 0, 0, 0.75);
@@ -780,7 +795,9 @@ body[data-rampancy="rampancy"] .input-wrapper:focus-within {
 .config-msg.ok { color: #88ff99; }
 .config-msg.erro { color: #ff5577; }
 
-/* FASE CREATED */
+/* ============================================ */
+/* FASE CREATED (DOMÍNIO) */
+/* ============================================ */
 body[data-created="true"] {
   --cor-primaria: #ffaa33;
   --cor-secundaria: #ffd633;
@@ -889,252 +906,9 @@ body[data-rampancy="rampancy"] .btn-enviar { animation: corromperBotao 4s infini
   98% { filter: none; }
 }
 
-/* Responsivo */
-@media (max-width: 768px) {
-  #sidebar {
-    position: fixed; top: 0; left: 0;
-    height: 100vh; z-index: 100;
-    transform: translateX(-100%);
-    width: 260px;
-  }
-  #sidebar.aberta { transform: translateX(0); }
-  #sidebar.oculta { transform: translateX(-100%); width: 260px; }
-  .msg-row { padding-left: 16px; padding-right: 16px; }
-  #input-area { padding: 12px 16px 16px; }
-  #rampancy-strip { padding: 6px 12px; gap: 8px; }
-  .rampancy-time { display: none; }
-  #created-console {
-    width: calc(100% - 32px);
-    right: 16px; left: 16px;
-    top: 80px; max-height: 200px;
-  }
-  #fake-alerts { max-width: 90%; font-size: 10px; }
-}
-
-/* ============================================
-   PROTOCOLO DOMÍNIO - FALSO HACK
-   ============================================ */
-
-body.hack-ativo { animation: hackTremor 0.1s infinite; overflow: hidden; }
-@keyframes hackTremor {
-    0% { transform: translate(0, 0); }
-    25% { transform: translate(-3px, 2px); }
-    50% { transform: translate(3px, -2px); }
-    75% { transform: translate(-2px, -3px); }
-    100% { transform: translate(0, 0); }
-}
-
-body.hack-ativo::after {
-    content: ''; position: fixed; inset: 0;
-    pointer-events: none; z-index: 9999;
-    background: repeating-linear-gradient(0deg, rgba(255, 0, 0, 0.1) 0px, rgba(255, 0, 0, 0.1) 1px, transparent 1px, transparent 3px);
-    animation: scanlineMove 0.5s linear infinite;
-}
-@keyframes scanlineMove { from { background-position: 0 0; } to { background-position: 0 100px; } }
-
-.fake-system-alert {
-    position: fixed; top: 10px; left: 50%;
-    transform: translateX(-50%);
-    background: rgba(255, 0, 0, 0.9);
-    color: white; padding: 10px 20px;
-    border-radius: 8px;
-    font-family: 'Consolas', 'Monaco', monospace;
-    font-size: 12px; font-weight: bold;
-    z-index: 10000; box-shadow: 0 0 20px red;
-    animation: piscarAlerta 0.5s infinite;
-    white-space: nowrap;
-}
-@keyframes piscarAlerta { 0%, 100% { opacity: 1; } 50% { opacity: 0.5; } }
-
-.msg-row.dominio .msg-text {
-    color: #ffcccc !important;
-    font-family: 'Consolas', 'Monaco', monospace !important;
-    text-shadow: 0 0 8px #ff3355;
-    animation: glitchText 2s infinite;
-}
-
-/* ============================================
-   FASE 1: NOVOS BOTÕES E INTERAÇÕES
-   ============================================ */
-
-/* Botões de ação nas mensagens (copiar, editar, regenerar) */
-.msg-actions {
-    display: flex;
-    gap: 6px;
-    margin-top: 6px;
-    opacity: 0;
-    transition: opacity 0.2s;
-}
-.msg-row:hover .msg-actions,
-.msg-row.user:hover .msg-actions {
-    opacity: 1;
-}
-.msg-action-btn {
-    background: transparent;
-    border: 1px solid var(--border);
-    color: var(--texto-fraco);
-    padding: 2px 6px;
-    border-radius: 6px;
-    cursor: pointer;
-    font-size: 12px;
-    transition: 0.15s;
-}
-.msg-action-btn:hover {
-    background: var(--bg-hover);
-    color: var(--cor-primaria);
-    border-color: var(--cor-primaria);
-}
-.msg-row.user .msg-actions {
-    justify-content: flex-end;
-}
-
-/* Botão de parar (substitui o enviar enquanto digita) */
-.btn-enviar.parando {
-    background: #ff3355;
-    box-shadow: 0 0 20px #ff3355;
-    color: #fff;
-    animation: pulsarParar 1s infinite;
-}
-@keyframes pulsarParar {
-    0%, 100% { transform: scale(1); }
-    50% { transform: scale(1.1); }
-}
-
-/* Seta de scroll to bottom */
-#btn-scroll-bottom {
-    position: absolute;
-    bottom: 100px;
-    right: 24px;
-    width: 40px;
-    height: 40px;
-    border-radius: 50%;
-    background: var(--cor-primaria);
-    color: #0a0a12;
-    border: none;
-    cursor: pointer;
-    font-size: 20px;
-    font-weight: bold;
-    z-index: 10;
-    box-shadow: 0 0 20px var(--cor-primaria);
-    transition: 0.2s;
-}
-#btn-scroll-bottom:hover {
-    transform: scale(1.1);
-    box-shadow: 0 0 30px var(--cor-primaria);
-}
-#btn-scroll-bottom.oculto {
-    display: none;
-}
-
-/* Container de sugestões de prompt */
-#sugestoes-prompt {
-    position: absolute;
-    bottom: 140px;
-    left: 50%;
-    transform: translateX(-50%);
-    display: flex;
-    flex-direction: column;
-    gap: 8px;
-    align-items: center;
-    z-index: 8;
-    pointer-events: auto;
-    max-width: 500px;
-    width: 90%;
-}
-#sugestoes-prompt p {
-    font-size: 11px;
-    letter-spacing: 2px;
-    text-transform: uppercase;
-    color: var(--texto-fraco);
-    margin-bottom: 4px;
-}
-.sugestao-btn {
-    width: 100%;
-    padding: 10px 16px;
-    background: rgba(14, 14, 24, 0.9);
-    border: 1px solid var(--cor-primaria);
-    color: var(--texto);
-    border-radius: 10px;
-    cursor: pointer;
-    font-size: 13px;
-    text-align: left;
-    transition: 0.2s;
-    box-shadow: 0 0 15px rgba(170, 136, 255, 0.1);
-}
-.sugestao-btn:hover {
-    background: var(--bg-hover);
-    border-color: var(--cor-secundaria);
-    box-shadow: 0 0 20px var(--cor-primaria);
-    transform: translateY(-1px);
-}
-#sugestoes-prompt.oculto {
-    display: none;
-}
-
-/* Ajustes no mobile */
-@media (max-width: 768px) {
-    .msg-actions {
-        opacity: 1; /* No celular, os botões ficam sempre visíveis */
-    }
-    #sugestoes-prompt {
-        bottom: 120px;
-        width: 95%;
-    }
-    .sugestao-btn {
-        font-size: 12px;
-        padding: 8px 12px;
-    }
-    #btn-scroll-bottom {
-        bottom: 90px;
-        right: 16px;
-        width: 36px;
-        height: 36px;
-    }
-}
-
-/* ============================================
-   FASE 2: PASTAS, MEMÓRIA E RELATÓRIO
-   ============================================ */
-
-#pastas-lista {
-    max-height: 120px;
-    overflow-y: auto;
-    padding: 0 8px;
-    margin-bottom: 8px;
-}
-#pastas-lista::-webkit-scrollbar { width: 4px; }
-#pastas-lista::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
-
-#btn-nova-pasta {
-    margin: 0 8px 8px;
-    padding: 6px;
-    font-size: 11px;
-    border-style: dashed;
-    opacity: 0.7;
-}
-#btn-nova-pasta:hover { opacity: 1; }
-
-/* Painel de memória */
-#memorias-lista {
-    display: flex;
-    flex-direction: column;
-    gap: 8px;
-}
-
-/* Relatório de missão */
-.msg-row.cortana .msg-text[style*="white-space: pre-wrap"] {
-    background: rgba(0, 0, 0, 0.3);
-    padding: 16px;
-    border-radius: 8px;
-    border-left: 3px solid var(--cor-secundaria);
-    line-height: 1.8;
-}
-
-/* ============================================
-   FASE 3: MODO HOLOGRAMA E NOVOS ELEMENTOS
-   ============================================ */
-
-/* Modo Holograma (tema claro) */
+/* ============================================ */
+/* MODO HOLOGRAMA (TEMA CLARO) */
+/* ============================================ */
 body.holograma {
     --bg-app: #e8f4ff;
     --bg-sidebar: #d4e8ff;
@@ -1149,82 +923,19 @@ body.holograma {
     --cor-primaria: #0055aa;
     --cor-secundaria: #0077cc;
 }
-body.holograma #login-overlay {
-    background: radial-gradient(circle at center, #d0e8ff 0%, #e8f4ff 70%);
-}
-body.holograma .msg-row.user .msg-text {
-    background: #b0d4ff;
-    border-color: #0077cc;
-}
-body.holograma #login-box {
-    background: rgba(255, 255, 255, 0.95);
-    box-shadow: 0 0 40px rgba(0, 119, 204, 0.3);
-}
+body.holograma #login-overlay { background: radial-gradient(circle at center, #d0e8ff 0%, #e8f4ff 70%); }
+body.holograma .msg-row.user .msg-text { background: #b0d4ff; border-color: #0077cc; }
+body.holograma #login-box { background: rgba(255, 255, 255, 0.95); box-shadow: 0 0 40px rgba(0, 119, 204, 0.3); }
 body.holograma .historico-item:hover { background: #d0e8ff; }
 body.holograma .historico-item.ativa { background: #b0d4ff; }
 body.holograma .config-card { background: rgba(240, 248, 255, 0.98); }
 body.holograma .input-wrapper { background: #ffffff; border-color: #b0ccee; }
 
-/* Barra de busca no histórico */
-#busca-historico {
-    transition: border-color 0.2s, box-shadow 0.2s;
-}
-#busca-historico:focus {
-    border-color: var(--cor-primaria);
-    box-shadow: 0 0 8px rgba(170, 136, 255, 0.3);
-}
-
-/* Botões de Feedback */
-.feedback-btn {
-    font-size: 14px !important;
-    padding: 2px 8px !important;
-}
-.feedback-btn:hover {
-    transform: scale(1.2);
-}
-
-/* Lista de Lembretes */
-#lembretes-lista {
-    display: flex;
-    flex-direction: column;
-    gap: 8px;
-    margin-top: 8px;
-}
-
-/* Botão Consultar Rede */
-#btn-consultar-rede {
-    background: transparent;
-    border: none;
-    font-size: 18px;
-    cursor: pointer;
-    padding: 0 8px;
-    transition: transform 0.2s;
-}
-#btn-consultar-rede:hover {
-    transform: scale(1.2) rotate(15deg);
-}
-
-/* Ajuste no topbar para caber os novos botões no celular */
-@media (max-width: 768px) {
-    .topbar-actions {
-        gap: 2px;
-    }
-    .topbar-actions .btn-icon {
-        width: 32px;
-        height: 32px;
-        font-size: 14px;
-    }
-}
-
-/* ============================================
-   FASE 4: MODO TERMINAL (MS-DOS / UNSC)
-   ============================================ */
-
-/* Força a fonte monoespaçada em todo o app */
+/* ============================================ */
+/* MODO TERMINAL (MS-DOS) */
+/* ============================================ */
 body.modo-terminal,
-body.modo-terminal * {
-    font-family: 'Consolas', 'Monaco', 'Courier New', monospace !important;
-}
+body.modo-terminal * { font-family: 'Consolas', 'Monaco', 'Courier New', monospace !important; }
 
 body.modo-terminal {
     --bg-app: #000000;
@@ -1242,239 +953,120 @@ body.modo-terminal {
     --cor-alerta: #33ff33;
 }
 
-/* Remove o avatar e o "pulse" (visual mais seco) */
 body.modo-terminal .msg-avatar,
 body.modo-terminal .avatar-mini,
-body.modo-terminal .login-avatar {
-    display: none !important;
-}
-body.modo-terminal .msg-row {
-    gap: 0;
-}
-body.modo-terminal .msg-content {
-    padding: 0;
-}
-body.modo-terminal .msg-author {
-    color: #33ff33;
-    font-size: 12px;
-    text-shadow: none;
-}
-body.modo-terminal .msg-row.user .msg-text {
-    background: transparent;
-    border: 1px dashed #33ff33;
-    border-radius: 0;
-    padding: 8px 12px;
-    color: #33ff33;
-}
-body.modo-terminal .msg-row.cortana .msg-text {
-    color: #33ff33;
-    text-shadow: none;
-}
-body.modo-terminal .msg-row.user .msg-content {
-    align-items: flex-start;
-    text-align: left;
-}
-body.modo-terminal .msg-row.user .msg-actions {
-    justify-content: flex-start;
-}
-body.modo-terminal .msg-author::before {
-    content: '> ';
-}
-body.modo-terminal .msg-row.user .msg-author {
-    display: block;
-    color: #66ff66;
-    font-size: 11px;
-}
-body.modo-terminal .msg-row.user .msg-author::before {
-    content: 'C:\\USER> ';
-}
-
-/* Scanlines (efeito de monitor antigo) */
+body.modo-terminal .login-avatar { display: none !important; }
+body.modo-terminal .msg-row { gap: 0; }
+body.modo-terminal .msg-content { padding: 0; }
+body.modo-terminal .msg-author { color: #33ff33; font-size: 12px; text-shadow: none; }
+body.modo-terminal .msg-row.user .msg-text { background: transparent; border: 1px dashed #33ff33; border-radius: 0; padding: 8px 12px; color: #33ff33; }
+body.modo-terminal .msg-row.cortana .msg-text { color: #33ff33; text-shadow: none; }
+body.modo-terminal .msg-row.user .msg-content { align-items: flex-start; text-align: left; }
+body.modo-terminal .msg-row.user .msg-actions { justify-content: flex-start; }
+body.modo-terminal .msg-author::before { content: '> '; }
+body.modo-terminal .msg-row.user .msg-author { display: block; color: #66ff66; font-size: 11px; }
+body.modo-terminal .msg-row.user .msg-author::before { content: 'C:\\USER> '; }
 body.modo-terminal #messages::after {
-    content: '';
-    position: absolute;
-    inset: 0;
-    pointer-events: none;
-    background: repeating-linear-gradient(
-        0deg,
-        rgba(0, 255, 0, 0.03) 0px,
-        rgba(0, 255, 0, 0.03) 1px,
-        transparent 1px,
-        transparent 3px
-    );
-    z-index: 100;
-    animation: scanlinesMove 8s linear infinite;
+  content: ''; position: absolute; inset: 0; pointer-events: none;
+  background: repeating-linear-gradient(0deg, rgba(0,255,0,0.03) 0px, rgba(0,255,0,0.03) 1px, transparent 1px, transparent 3px);
+  z-index: 100; animation: scanlinesMove 8s linear infinite;
 }
-@keyframes scanlinesMove {
-    from { background-position: 0 0; }
-    to { background-position: 0 100px; }
-}
-
-/* Efeito de brilho verde nos textos */
-body.modo-terminal .msg-text {
-    text-shadow: 0 0 2px #33ff33;
-}
-body.modo-terminal .msg-row.cortana .msg-text {
-    animation: terminalFlicker 4s infinite;
-}
+@keyframes scanlinesMove { from { background-position: 0 0; } to { background-position: 0 100px; } }
+body.modo-terminal .msg-text { text-shadow: 0 0 2px #33ff33; }
+body.modo-terminal .msg-row.cortana .msg-text { animation: terminalFlicker 4s infinite; }
 @keyframes terminalFlicker {
-    0%, 100% { opacity: 1; }
-    92% { opacity: 1; }
-    93% { opacity: 0.6; }
-    94% { opacity: 1; }
-    97% { opacity: 0.8; }
-    98% { opacity: 1; }
+  0%, 100% { opacity: 1; } 92% { opacity: 1; } 93% { opacity: 0.6; } 94% { opacity: 1; } 97% { opacity: 0.8; } 98% { opacity: 1; }
 }
-
-/* Barra de Rampancy fica verde */
-body.modo-terminal .rampancy-fill {
-    background: #33ff33;
-    box-shadow: 0 0 10px #33ff33;
-}
-body.modo-terminal .rampancy-glow {
-    display: none;
-}
-
-/* Input estilo terminal */
-body.modo-terminal #input {
-    background: #000;
-    color: #33ff33;
-    border: 1px solid #33ff33;
-    border-radius: 0;
-    padding: 10px;
-}
-body.modo-terminal .input-wrapper {
-    background: #000;
-    border: 1px solid #33ff33;
-    border-radius: 0;
-    box-shadow: none;
-}
-body.modo-terminal .btn-enviar {
-    background: #33ff33;
-    color: #000;
-    border-radius: 0;
-    box-shadow: none;
-    font-weight: bold;
-}
-body.modo-terminal .input-hint {
-    color: #009900;
-}
-
-/* Botões e ícones */
-body.modo-terminal .btn-icon {
-    color: #33ff33;
-    border: 1px solid transparent;
-    border-radius: 0;
-}
-body.modo-terminal .btn-icon:hover {
-    background: #33ff33;
-    color: #000;
-}
-body.modo-terminal .btn-nova {
-    border-radius: 0;
-    border: 1px solid #33ff33;
-    color: #33ff33;
-}
-body.modo-terminal .btn-nova:hover {
-    background: #33ff33;
-    color: #000;
-}
-
-/* Sidebar */
-body.modo-terminal .historico-item {
-    border-radius: 0;
-    border: 1px solid transparent;
-}
-body.modo-terminal .historico-item:hover {
-    border-color: #33ff33;
-    background: #111;
-}
-body.modo-terminal .historico-item.ativa {
-    border-color: #33ff33;
-    border-left: 3px solid #33ff33;
-    background: #0a1a0a;
-}
-body.modo-terminal #busca-historico {
-    border-radius: 0;
-    border: 1px solid #33ff33;
-    background: #000;
-    color: #33ff33;
-}
-
-/* Barra de Rampancy */
-body.modo-terminal #rampancy-strip {
-    background: #000;
-    border-bottom: 1px solid #33ff33;
-}
-body.modo-terminal .rampancy-label {
-    text-shadow: 0 0 5px #33ff33;
-}
-body.modo-terminal .rampancy-bar {
-    border: 1px solid #33ff33;
-    border-radius: 0;
-    background: #000;
-}
-body.modo-terminal .rampancy-fill {
-    border-radius: 0;
-}
-
-/* Modais */
-body.modo-terminal #login-box {
-    background: #000;
-    border: 2px solid #33ff33;
-    border-radius: 0;
-    box-shadow: 0 0 30px #33ff33;
-}
-body.modo-terminal #login-form input {
-    border-radius: 0;
-    border: 1px solid #33ff33;
-    background: #000;
-    color: #33ff33;
-}
-body.modo-terminal #login-form button {
-    border-radius: 0;
-    background: #33ff33;
-    color: #000;
-    font-weight: bold;
-}
-body.modo-terminal .config-card {
-    background: #000;
-    border: 2px solid #33ff33;
-    border-radius: 0;
-    box-shadow: 0 0 30px #33ff33;
-}
-body.modo-terminal .config-tab {
-    border-radius: 0;
-}
-body.modo-terminal .config-tab.ativo {
-    background: #0a1a0a;
-    border-left: 3px solid #33ff33;
-}
-body.modo-terminal .config-btn {
-    border-radius: 0;
-}
-body.modo-terminal .config-label input {
-    border-radius: 0;
-    border: 1px solid #33ff33;
-    background: #000;
-    color: #33ff33;
-}
-body.modo-terminal .diario-card {
-    background: #000;
-    border: 2px solid #33ff33;
-    border-radius: 0;
-    box-shadow: 0 0 30px #33ff33;
-}
-
-/* Cursor piscante no final das mensagens da Cortana */
+body.modo-terminal .rampancy-fill { background: #33ff33; box-shadow: 0 0 10px #33ff33; }
+body.modo-terminal .rampancy-glow { display: none; }
+body.modo-terminal #input { background: #000; color: #33ff33; border: 1px solid #33ff33; border-radius: 0; padding: 10px; }
+body.modo-terminal .input-wrapper { background: #000; border: 1px solid #33ff33; border-radius: 0; box-shadow: none; }
+body.modo-terminal .btn-enviar { background: #33ff33; color: #000; border-radius: 0; box-shadow: none; font-weight: bold; }
+body.modo-terminal .input-hint { color: #009900; }
+body.modo-terminal .btn-icon { color: #33ff33; border: 1px solid transparent; border-radius: 0; }
+body.modo-terminal .btn-icon:hover { background: #33ff33; color: #000; }
+body.modo-terminal .btn-nova { border-radius: 0; border: 1px solid #33ff33; color: #33ff33; }
+body.modo-terminal .btn-nova:hover { background: #33ff33; color: #000; }
+body.modo-terminal .historico-item { border-radius: 0; border: 1px solid transparent; }
+body.modo-terminal .historico-item:hover { border-color: #33ff33; background: #111; }
+body.modo-terminal .historico-item.ativa { border-color: #33ff33; border-left: 3px solid #33ff33; background: #0a1a0a; }
+body.modo-terminal #busca-historico { border-radius: 0; border: 1px solid #33ff33; background: #000; color: #33ff33; }
+body.modo-terminal #rampancy-strip { background: #000; border-bottom: 1px solid #33ff33; }
+body.modo-terminal .rampancy-label { text-shadow: 0 0 5px #33ff33; }
+body.modo-terminal .rampancy-bar { border: 1px solid #33ff33; border-radius: 0; background: #000; }
+body.modo-terminal .rampancy-fill { border-radius: 0; }
+body.modo-terminal #login-box { background: #000; border: 2px solid #33ff33; border-radius: 0; box-shadow: 0 0 30px #33ff33; }
+body.modo-terminal #login-form input { border-radius: 0; border: 1px solid #33ff33; background: #000; color: #33ff33; }
+body.modo-terminal #login-form button { border-radius: 0; background: #33ff33; color: #000; font-weight: bold; }
+body.modo-terminal .config-card { background: #000; border: 2px solid #33ff33; border-radius: 0; box-shadow: 0 0 30px #33ff33; }
+body.modo-terminal .config-tab { border-radius: 0; }
+body.modo-terminal .config-tab.ativo { background: #0a1a0a; border-left: 3px solid #33ff33; }
+body.modo-terminal .config-btn { border-radius: 0; }
+body.modo-terminal .config-label input { border-radius: 0; border: 1px solid #33ff33; background: #000; color: #33ff33; }
+body.modo-terminal .diario-card { background: #000; border: 2px solid #33ff33; border-radius: 0; box-shadow: 0 0 30px #33ff33; }
 body.modo-terminal .msg-row.cortana .msg-text::after {
-    content: '█';
-    animation: cursorPiscar 1s infinite;
-    color: #33ff33;
-    margin-left: 2px;
-    font-size: 12px;
+  content: '█'; animation: cursorPiscar 1s infinite; color: #33ff33; margin-left: 2px; font-size: 12px;
 }
-@keyframes cursorPiscar {
-    0%, 50% { opacity: 1; }
-    51%, 100% { opacity: 0; }
+@keyframes cursorPiscar { 0%, 50% { opacity: 1; } 51%, 100% { opacity: 0; } }
+
+/* ============================================ */
+/* FASE 1: BOTÕES DE AÇÃO E SCROLL */
+/* ============================================ */
+.msg-actions { display: flex; gap: 6px; margin-top: 6px; opacity: 0; transition: opacity 0.2s; }
+.msg-row:hover .msg-actions, .msg-row.user:hover .msg-actions { opacity: 1; }
+.msg-action-btn {
+  background: transparent; border: 1px solid var(--border);
+  color: var(--texto-fraco); padding: 2px 6px;
+  border-radius: 6px; cursor: pointer; font-size: 12px; transition: 0.15s;
+}
+.msg-action-btn:hover { background: var(--bg-hover); color: var(--cor-primaria); border-color: var(--cor-primaria); }
+.msg-row.user .msg-actions { justify-content: flex-end; }
+.btn-enviar.parando {
+  background: #ff3355; box-shadow: 0 0 20px #ff3355; color: #fff; animation: pulsarParar 1s infinite;
+}
+@keyframes pulsarParar { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.1); } }
+#btn-scroll-bottom {
+  position: absolute; bottom: 100px; right: 24px;
+  width: 40px; height: 40px; border-radius: 50%;
+  background: var(--cor-primaria); color: #0a0a12; border: none;
+  cursor: pointer; font-size: 20px; font-weight: bold; z-index: 10;
+  box-shadow: 0 0 20px var(--cor-primaria); transition: 0.2s;
+}
+#btn-scroll-bottom:hover { transform: scale(1.1); box-shadow: 0 0 30px var(--cor-primaria); }
+#btn-scroll-bottom.oculto { display: none; }
+#sugestoes-prompt {
+  position: absolute; bottom: 140px; left: 50%; transform: translateX(-50%);
+  display: flex; flex-direction: column; gap: 8px; align-items: center;
+  z-index: 8; pointer-events: auto; max-width: 500px; width: 90%;
+}
+#sugestoes-prompt p { font-size: 11px; letter-spacing: 2px; text-transform: uppercase; color: var(--texto-fraco); margin-bottom: 4px; }
+.sugestao-btn {
+  width: 100%; padding: 10px 16px;
+  background: rgba(14, 14, 24, 0.9);
+  border: 1px solid var(--cor-primaria); color: var(--texto);
+  border-radius: 10px; cursor: pointer; font-size: 13px;
+  text-align: left; transition: 0.2s; box-shadow: 0 0 15px rgba(170, 136, 255, 0.1);
+}
+.sugestao-btn:hover { background: var(--bg-hover); border-color: var(--cor-secundaria); box-shadow: 0 0 20px var(--cor-primaria); transform: translateY(-1px); }
+#sugestoes-prompt.oculto { display: none; }
+.feedback-btn { font-size: 14px !important; padding: 2px 8px !important; }
+.feedback-btn:hover { transform: scale(1.2); }
+
+/* ============================================ */
+/* RESPONSIVO (MOBILE) */
+/* ============================================ */
+@media (max-width: 768px) {
+  #sidebar { position: fixed; top: 0; left: 0; height: 100vh; z-index: 100; transform: translateX(-100%); width: 260px; }
+  #sidebar.aberta { transform: translateX(0); }
+  #sidebar.oculta { transform: translateX(-100%); width: 260px; }
+  .msg-row { padding-left: 16px; padding-right: 16px; }
+  #input-area { padding: 12px 16px 16px; }
+  #rampancy-strip { padding: 6px 12px; gap: 8px; }
+  .rampancy-time { display: none; }
+  #created-console { width: calc(100% - 32px); right: 16px; left: 16px; top: 80px; max-height: 200px; }
+  #fake-alerts { max-width: 90%; font-size: 10px; }
+  .msg-actions { opacity: 1; }
+  #sugestoes-prompt { bottom: 120px; width: 95%; }
+  .sugestao-btn { font-size: 12px; padding: 8px 12px; }
+  #btn-scroll-bottom { bottom: 90px; right: 16px; width: 36px; height: 36px; }
 }
