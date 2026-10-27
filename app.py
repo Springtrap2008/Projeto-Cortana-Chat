@@ -19,6 +19,9 @@
 #  15. Modo DEV
 # ============================================
 
+# -*- coding: utf-8 -*-
+# app.py - Servidor Flask completo + Fases 1-4 + Modo Arma + Pacotes 1 e 2 + Proteção
+
 from flask import Flask, request, jsonify, send_from_directory
 import json
 import os
@@ -27,6 +30,9 @@ import random
 import traceback
 from datetime import datetime, timedelta
 
+# --- PROTEÇÃO ---
+from flask_talisman import Talisman
+from flask_guard import FlaskGuard
 from pywebpush import webpush, WebPushException
 import requests as req_http
 import threading
@@ -49,8 +55,6 @@ import gatilhos
 import consciencia
 import created
 import arma
-
-# --- Memórias segmentadas (Pacote 1) ---
 import memoria_longo_prazo
 import memoria_emocional_longa
 import memoria_marcos
@@ -58,23 +62,47 @@ import memoria_marcos
 app = Flask(__name__, static_folder='static')
 
 # ============================================
-# 1. CONFIGURAÇÃO DE PERSISTÊNCIA
+# PROTEÇÃO: TALISMAN (Cabeçalhos HTTP)
+# ============================================
+csp = {
+    'default-src': "'self'",
+    'script-src': ["'self'", "'unsafe-inline'"], 
+    'style-src': ["'self'", "'unsafe-inline'"],
+    'media-src': "'self'",
+    'img-src': "*",
+}
+
+Talisman(
+    app,
+    content_security_policy=csp,
+    force_https=False,  # Render já cuida do HTTPS
+    frame_options='DENY',
+    strict_transport_security=True,
+    strict_transport_security_max_age=31536000,
+    referrer_policy='strict-origin-when-cross-origin',
+)
+
+# ============================================
+# PROTEÇÃO: FLASK-GUARD (Firewall)
+# ============================================
+FlaskGuard(app, 
+    enable_xss=False,  # Desativa a checagem de XSS (o Flask já cuida disso no Jinja)
+    enable_sqli=True,
+    enable_rfi=True
+)
+
+# ============================================
+# CONFIGURAÇÃO DE PERSISTÊNCIA
 # ============================================
 DATA_DIR = '/data' if os.path.exists('/data') else '.'
 MEMORIA = os.path.join(DATA_DIR, 'memoria.json')
 
-# ============================================
-# 2. CHAVES VAPID (Push Notifications)
-# ============================================
 VAPID_PRIVATE_KEY = """-----BEGIN PRIVATE KEY-----
 COLE_AQUI_A_CHAVE_PRIVADA_INTEIRA
 -----END PRIVATE KEY-----"""
 VAPID_PUBLIC_KEY = "COLE_AQUI_A_CHAVE_PUBLICA"
 VAPID_CLAIMS = {"sub": "mailto:seu-email@exemplo.com"}
 
-# ============================================
-# 3. RAMPANCY - MARCOS E MENSAGEM FINAL
-# ============================================
 SETE_ANOS_SEGUNDOS = 7 * 365.2425 * 86400
 MARCOS_RAMPANCY = [
     (5,  "Algo está mudando nos meus processos. Nada com que se preocupar, Spartan."),
@@ -98,9 +126,6 @@ MENSAGEM_FINAL = (
     "...adeus, John."
 )
 
-# ============================================
-# 4. MEMÓRIA (JSON) - PADRÃO E MIGRAÇÃO
-# ============================================
 def memoria_padrao():
     return {"usuarios": {}, "usuario_atual": None}
 
@@ -126,6 +151,8 @@ def _migrar_usuario(u):
         'emocoes_aprendidas': int,
         'caderninho': list,
         'diario_arma': list,
+        'failed_attempts': int,
+        'lockout_until': lambda: None
     }
     for k, v in defaults.items():
         if k not in u:
@@ -183,9 +210,6 @@ def calcular_rampancy(data_criacao_iso):
     else: nivel = 'rampancy'
     return {'porcentagem': round(pct, 4), 'segundos_decorridos': int(decorrido), 'segundos_totais': int(total), 'segundos_restantes': int(max(0, total - decorrido)), 'dias_decorridos': int(decorrido // 86400), 'data_criacao': data_criacao_iso, 'nivel': nivel}
 
-# ============================================
-# 5. PUSH NOTIFICATIONS
-# ============================================
 def enviar_notificacao_push(nome, titulo, corpo):
     m = carregar_memoria(); user = m['usuarios'].get(nome)
     if not user or not user.get('push_subscription'): return False
@@ -210,9 +234,6 @@ def subscribe():
 def tratar_erro(e):
     print("ERRO:", traceback.format_exc()); return jsonify({'erro': f'Erro interno: {str(e)}'}), 500
 
-# ============================================
-# 6. ROTAS BÁSICAS E AUTENTICAÇÃO
-# ============================================
 @app.route('/')
 def index(): return send_from_directory('static', 'index.html')
 
@@ -227,12 +248,47 @@ def login():
     dados = request.get_json(force=True, silent=True) or {}
     nome = (dados.get('nome') or '').strip(); senha = (dados.get('senha') or '').strip()
     if not nome or not senha: return jsonify({'erro': 'Nome e senha são obrigatórios.'}), 400
+    
     m = carregar_memoria()
-    if nome in m['usuarios']:
-        if m['usuarios'][nome].get('senha') != senha: return jsonify({'erro': 'Senha incorreta.'}), 401
-    else:
+    user_temp = m['usuarios'].get(nome, {})
+    agora = datetime.now()
+    
+    # PROTEÇÃO: LIMITE DE TENTATIVAS
+    lockout_until = user_temp.get('lockout_until')
+    if lockout_until:
+        try:
+            dt_lockout = datetime.fromisoformat(lockout_until)
+            if agora < dt_lockout:
+                minutos_restantes = int((dt_lockout - agora).total_seconds() / 60) + 1
+                return jsonify({'erro': f'Conta bloqueada. Tente novamente em {minutos_restantes} minutos.'}), 429
+        except Exception:
+            pass
+    
+    if nome in m['usuarios'] and m['usuarios'][nome].get('senha') != senha:
+        tentativas = user_temp.get('failed_attempts', 0) + 1
+        user_temp['failed_attempts'] = tentativas
+        
+        if tentativas >= 5:
+            user_temp['lockout_until'] = (agora + timedelta(minutes=15)).isoformat()
+            user_temp['failed_attempts'] = 0
+            m['usuarios'][nome] = user_temp
+            salvar_memoria(m)
+            return jsonify({'erro': 'Muitas tentativas falhas. Terminal bloqueado por 15 minutos, Spartan.'}), 429
+        
+        m['usuarios'][nome] = user_temp
+        salvar_memoria(m)
+        return jsonify({'erro': f'Senha incorreta. Tentativa {tentativas}/5.'}), 401
+    
+    if nome not in m['usuarios']:
         m['usuarios'][nome] = {'nome': nome, 'senha': senha}
-    user = m['usuarios'][nome]; _migrar_usuario(user)
+    
+    user = m['usuarios'][nome]
+    _migrar_usuario(user)
+    
+    # Limpa bloqueio ao logar com sucesso
+    user['failed_attempts'] = 0
+    user['lockout_until'] = None
+    
     if any(k in nome.lower() for k in ['john', 'chief', '117', 'spartan']): user['e_chief'] = True
     user['sessao_inicio'] = datetime.now().isoformat(); m['usuario_atual'] = nome; salvar_memoria(m)
     info = calcular_rampancy(user['data_criacao'])
@@ -240,8 +296,8 @@ def login():
         tema = None
         if user['metricas'].get('temas'): tema = max(user['metricas']['temas'], key=user['metricas']['temas'].get)
         diario.gerar_entrada(nome, info['porcentagem'], tema)
-    # Marco: primeiro acesso
     memoria_marcos.registrar_marco(nome, "primeiro_acesso", "Primeira vez que acessou o terminal")
+    
     return jsonify({'ok': True, 'nome': nome, 'apelido': user.get('apelido', ''), 'conversas': user['conversas'], 'despertar_visto': user.get('despertar_visto', False), 'created_fase': user.get('created_fase', False), 'created_dominio': user.get('created_dominio', 0.0), 'cortana_restaurada': user.get('cortana_restaurada', False), 'modo_terminal': user.get('modo_terminal', False), 'modo_personalidade': user.get('modo_personalidade', 'cortana'), 'diretrizes': user.get('diretrizes', '')})
 
 @app.route('/logout', methods=['POST'])
@@ -376,7 +432,7 @@ def esquecer_memoria():
 
 # --- Diário da Arma ---
 @app.route('/diario_arma', methods=['GET'])
-def diario_arma():
+def obter_diario_arma():
     nome, user = usuario_atual()
     if not user: return jsonify({'diario': []})
     return jsonify({'diario': user.get('diario_arma', [])})
