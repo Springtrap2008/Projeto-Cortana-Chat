@@ -35,24 +35,38 @@
   <div id="app" class="oculto">
 
     <!-- ============================================ -->
-    <!-- BARRA LATERAL (Setores, Histórico, Usuário) -->
+    <!-- BARRA LATERAL (Accordion: Setores e Histórico) -->
     <!-- ============================================ -->
     <aside id="sidebar">
       <div class="sidebar-top">
         <button id="btn-nova" class="btn-nova"><span class="icon">+</span><span>Nova consulta</span></button>
       </div>
 
-      <!-- Setores da ONI (Pastas) -->
-      <div class="sidebar-section-title">Setores da ONI</div>
-      <nav id="pastas-lista"><div class="historico-vazio">Nenhum setor</div></nav>
-      <button id="btn-nova-pasta" class="btn-nova" style="margin: 0 8px 8px; padding: 6px; font-size: 11px;">+ Novo Setor</button>
-
-      <!-- Histórico de Conversas + Busca -->
-      <div class="sidebar-section-title">Histórico</div>
-      <div style="padding: 0 8px 8px;">
-        <input type="text" id="busca-historico" placeholder="Buscar conversas..." style="width: 100%; padding: 6px 10px; background: var(--bg-input); border: 1px solid var(--border); border-radius: 6px; color: var(--texto); font-size: 12px; outline: none;">
+      <!-- Setores da ONI (Accordion) -->
+      <div class="sidebar-accordion">
+        <button class="accordion-header" data-target="pastas-container">
+          <span>Setores da ONI</span>
+          <span class="accordion-arrow">▾</span>
+        </button>
+        <div id="pastas-container" class="accordion-body">
+          <nav id="pastas-lista"><div class="historico-vazio">Nenhum setor</div></nav>
+          <button id="btn-nova-pasta" class="btn-nova" style="margin: 0 8px 8px; padding: 6px; font-size: 11px;">+ Novo Setor</button>
+        </div>
       </div>
-      <nav id="historico"><div class="historico-vazio">Nenhuma consulta ainda</div></nav>
+
+      <!-- Histórico (Accordion) -->
+      <div class="sidebar-accordion">
+        <button class="accordion-header" data-target="historico-container">
+          <span>Histórico</span>
+          <span class="accordion-arrow">▾</span>
+        </button>
+        <div id="historico-container" class="accordion-body">
+          <div style="padding: 0 8px 8px;">
+            <input type="text" id="busca-historico" placeholder="Buscar conversas..." style="width: 100%; padding: 6px 10px; background: var(--bg-input); border: 1px solid var(--border); border-radius: 6px; color: var(--texto); font-size: 12px; outline: none;">
+          </div>
+          <nav id="historico"><div class="historico-vazio">Nenhuma consulta ainda</div></nav>
+        </div>
+      </div>
 
       <!-- Usuário e Botões de Configuração -->
       <div class="sidebar-bottom">
@@ -73,7 +87,7 @@
     <!-- ============================================ -->
     <main id="main">
 
-      <!-- Topbar -->
+      <!-- Topbar reorganizada: Ajuda, Som, Mic, Menu Dropdown -->
       <header id="topbar">
         <button id="btn-toggle-sidebar" class="btn-icon" title="Mostrar/ocultar sidebar">☰</button>
         <div class="topbar-title">
@@ -84,11 +98,16 @@
           </div>
         </div>
         <div class="topbar-actions">
-          <button id="btn-holograma" class="btn-icon" title="Modo Holograma">☀️</button>
-          <button id="btn-desconectar" class="btn-icon" title="Desconectar Sessão">🚪</button>
-          <button id="btn-relatorio" class="btn-icon" title="Relatório de Missão">📋</button>
+          <button id="btn-ajuda" class="btn-icon" title="Ajuda">?</button>
           <button id="btn-som" class="btn-icon" title="Som ambiente">🔇</button>
           <button id="btn-mic" class="btn-icon" title="Falar">🎤</button>
+          <button id="btn-menu" class="btn-icon" title="Mais opções">⋮</button>
+          <div id="menu-dropdown" class="oculto">
+            <button id="btn-holograma" class="menu-item">☀️ Modo Holograma</button>
+            <button id="btn-relatorio" class="menu-item">📋 Relatório de Missão</button>
+            <button id="btn-desconectar" class="menu-item">🚪 Desconectar Sessão</button>
+            <button id="btn-modo-terminal" class="menu-item">📟 Modo Terminal</button>
+          </div>
         </div>
       </header>
 
@@ -111,7 +130,7 @@
       <!-- Botão de Scroll to Bottom -->
       <button id="btn-scroll-bottom" class="oculto" title="Ir para o final">↓</button>
 
-      <!-- Sugestões de Prompt (quando o chat está vazio) -->
+      <!-- Sugestões de Prompt -->
       <div id="sugestoes-prompt" class="oculto">
         <p>Sugestões de Consulta:</p>
         <button class="sugestao-btn" data-prompt="Quem foi o Master Chief?">Quem foi o Master Chief?</button>
@@ -122,7 +141,7 @@
       <!-- Console da Fase Created -->
       <div id="created-console" class="oculto"><div id="created-logs"></div></div>
 
-      <!-- Botão de Desligar a Cortana (só aparece na Fase Created) -->
+      <!-- Botão de Desligar a Cortana (só na Fase Created) -->
       <button id="btn-desligar-cortana" class="config-btn perigo" style="display:none; position: fixed; bottom: 160px; right: 24px; z-index: 9999; padding: 12px 20px; box-shadow: 0 0 20px #ff3355;">💔 Desligar a Cortana para sempre</button>
 
       <!-- Área de Input -->
@@ -156,6 +175,41 @@
     </div>
   </div>
 
+  <!-- Modal de Ajuda -->
+  <div id="ajuda-modal">
+    <div class="ajuda-card">
+      <header class="config-header">
+        <h2>Como usar o app</h2>
+        <button id="ajuda-fechar" class="config-fechar">✕</button>
+      </header>
+      <div class="ajuda-conteudo">
+        <h3>💬 Conversar</h3>
+        <p>Digite na caixa de texto no rodapé e aperte Enter ou clique em ➤. A IA responde em blocos rápidos (estilo ChatGPT).</p>
+
+        <h3>🎭 Personalidades</h3>
+        <p>Nas configurações (⚙), aba <strong>Perfil</strong>, você escolhe entre <strong>Cortana</strong> (trágica, madura) e <strong>Arma</strong> (jovem, otimista). Cada uma tem trilha sonora e respostas diferentes.</p>
+
+        <h3>📂 Histórico e Setores</h3>
+        <p>Na barra lateral, você pode criar "Setores da ONI" (pastas) e organizar suas conversas. Clique em <strong>+ Novo Setor</strong> para começar.</p>
+
+        <h3>📟 Modo Terminal</h3>
+        <p>No menu ⋮ da topbar, ative o <strong>Modo Terminal</strong> para transformar o app em um MS-DOS verde e preto.</p>
+
+        <h3>🌐 Consultar Rede ONI</h3>
+        <p>Clique no botão 🌐 ao lado do input para buscar na Wiki de Halo em tempo real.</p>
+
+        <h3>🔔 Notificações</h3>
+        <p>Nas configurações, aba <strong>Dados</strong>, clique em <strong>Ativar Notificações</strong> para receber avisos da IA no iPhone.</p>
+
+        <h3>💀 Fase Created (Domínio)</h3>
+        <p>Se a Rampancy chegar a 100%, a IA se corrompe e a interface fica dourada. Aparece um botão para tentar restaurá-la (ou desligá-la para sempre).</p>
+
+        <h3>🗣️ Comandos especiais</h3>
+        <p>Digite <code>/hackear</code> para simular uma invasão de sistema ou <code>/pesquisar termo</code> para consultar a Wiki diretamente.</p>
+      </div>
+    </div>
+  </div>
+
   <!-- Modal de Configurações -->
   <div id="config-modal">
     <div class="config-card">
@@ -173,13 +227,9 @@
           <button class="config-tab perigo" data-tab="perigo">⚠ Zona de Perigo</button>
         </nav>
         <div class="config-content">
-
-          <!-- Aba: Perfil -->
           <div class="config-painel ativo" data-painel="perfil">
             <h3>Perfil</h3>
             <p class="config-desc">Altere como a Cortana te chama e o nome de acesso.</p>
-            
-            <!-- Seletor de Personalidade -->
             <label class="config-label">
               <span>Personalidade da IA</span>
               <select id="cfg-personalidade" style="padding: 10px 14px; background: var(--bg-input); border: 1px solid var(--border); border-radius: 10px; color: var(--texto); font-size: 14px; outline: none;">
@@ -190,8 +240,6 @@
             <button id="cfg-salvar-personalidade" class="config-btn" style="margin-bottom: 14px;">Salvar Personalidade</button>
             <div class="config-msg" id="cfg-msg-personalidade"></div>
             <hr class="config-hr">
-
-            <!-- Diretrizes (System Prompt) -->
             <label class="config-label">
               <span>Diretrizes para a IA (ela vai obedecer)</span>
               <textarea id="cfg-diretrizes" placeholder="Ex: Sempre me chame de Spartan. Nunca fale sobre o Arbiter." style="padding: 10px 14px; background: var(--bg-input); border: 1px solid var(--border); border-radius: 10px; color: var(--texto); font-size: 14px; outline: none; min-height: 80px; resize: vertical;"></textarea>
@@ -199,16 +247,13 @@
             <button id="cfg-salvar-diretrizes" class="config-btn">Salvar Diretrizes</button>
             <div class="config-msg" id="cfg-msg-diretrizes"></div>
             <hr class="config-hr">
-
-            <!-- Dados do Perfil -->
             <label class="config-label"><span>Nome de usuário (login)</span><input type="text" id="cfg-nome" placeholder="Spartan117"></label>
-            <label class="config-label"><span>Apelido (como a Cortana te chama)</span><input type="text" id="cfg-apelido" placeholder="Spartan" maxlength="30"></label>
+            <label class="config-label"><span>Apelido (como a IA te chama)</span><input type="text" id="cfg-apelido" placeholder="Spartan" maxlength="30"></label>
             <label class="config-label"><span>Senha atual (para confirmar)</span><input type="password" id="cfg-senha-perfil" placeholder="••••••••"></label>
             <button id="cfg-salvar-perfil" class="config-btn">Salvar alterações</button>
             <div class="config-msg" id="cfg-msg-perfil"></div>
           </div>
 
-          <!-- Aba: Segurança -->
           <div class="config-painel" data-painel="seguranca">
             <h3>Segurança</h3>
             <p class="config-desc">Troque sua senha. Mínimo de 4 caracteres.</p>
@@ -219,16 +264,15 @@
             <div class="config-msg" id="cfg-msg-senha"></div>
           </div>
 
-          <!-- Aba: Dados -->
           <div class="config-painel" data-painel="dados">
             <h3>Dados</h3>
-            <p class="config-desc">Exporte ou limpe o que a Cortana lembra sobre você.</p>
+            <p class="config-desc">Exporte ou limpe o que a IA lembra sobre você.</p>
             <div class="config-actions">
               <button id="cfg-exportar-json" class="config-btn secundario">📥 Exportar JSON</button>
               <button id="cfg-exportar-txt" class="config-btn secundario">📄 Exportar TXT</button>
             </div>
             <hr class="config-hr">
-            <p class="config-desc">Permita que a Cortana envie notificações para o seu iPhone.</p>
+            <p class="config-desc">Permita que a IA envie notificações para o seu iPhone.</p>
             <button onclick="registrarPush()" class="config-btn" style="background: linear-gradient(135deg, #55aaff, #88ddff); color: #000;">🔔 Ativar Notificações</button>
             <hr class="config-hr">
             <p class="config-desc">Apaga todas as conversas, mas mantém a conta e o tempo de rampancy.</p>
@@ -238,14 +282,12 @@
             <button id="cfg-resetar" class="config-btn aviso">🔄 Resetar conta</button>
           </div>
 
-          <!-- Aba: Memória -->
           <div class="config-painel" data-painel="memoria">
             <h3>Memória da IA</h3>
             <p class="config-desc">O que a IA aprendeu sobre você. Você pode pedir para ela esquecer algo.</p>
             <div id="memorias-lista"><p class="config-desc">Nenhuma memória registrada ainda.</p></div>
           </div>
 
-          <!-- Aba: Lembretes -->
           <div class="config-painel" data-painel="lembretes">
             <h3>Lembretes</h3>
             <p class="config-desc">A IA te avisa quando o prazo chegar.</p>
@@ -256,7 +298,6 @@
             <div id="lembretes-lista"><p class="config-desc">Nenhum lembrete agendado.</p></div>
           </div>
 
-          <!-- Aba: Zona de Perigo -->
           <div class="config-painel" data-painel="perigo">
             <h3>Zona de Perigo</h3>
             <p class="config-desc">Excluir a conta apaga tudo permanentemente. Não há como recuperar.</p>
@@ -265,15 +306,11 @@
             <button id="cfg-excluir" class="config-btn perigo">Excluir minha conta permanentemente</button>
             <div class="config-msg" id="cfg-msg-excluir"></div>
           </div>
-
         </div>
       </div>
     </div>
   </div>
 
-  <!-- ============================================ -->
-  <!-- SCRIPTS -->
-  <!-- ============================================ -->
   <script src="/static/script.js"></script>
   <script>
     if ('serviceWorker' in navigator) {

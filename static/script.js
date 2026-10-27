@@ -1,10 +1,10 @@
 // ============================================
-// CORTANA CHAT - JS COMPLETO (Fases 1-4 + Modo Arma + Pacotes 1 e 2)
+// CORTANA CHAT - JS COMPLETO (Fases 1-4 + Modo Arma + Pacotes 1 e 2 + Reorganização)
 // ============================================
 // SEÇÕES:
 //  1. Elementos DOM e Estado
 //  2. Áudio (bipes e trilhas procedurais)
-//  3. Modo Terminal (Fase 4)
+//  3. Reorganização (Menu, Accordion, Ajuda)
 //  4. Login e Entrada
 //  5. Rampancy
 //  6. Fase Created
@@ -71,6 +71,13 @@ const cfgMsgPersonalidade = document.getElementById('cfg-msg-personalidade');
 const cfgDiretrizes = document.getElementById('cfg-diretrizes');
 const btnSalvarDiretrizes = document.getElementById('cfg-salvar-diretrizes');
 const cfgMsgDiretrizes = document.getElementById('cfg-msg-diretrizes');
+
+// Reorganização
+const btnMenu = document.getElementById('btn-menu');
+const menuDropdown = document.getElementById('menu-dropdown');
+const btnAjuda = document.getElementById('btn-ajuda');
+const ajudaModal = document.getElementById('ajuda-modal');
+const ajudaFechar = document.getElementById('ajuda-fechar');
 
 let micAtivo = false;
 let enviando = false;
@@ -152,95 +159,88 @@ function atualizarBotaoSom() {
   btnSom.classList.toggle('ativo', somLigado);
 }
 
-// ============================================
-// TRILHAS PROCEDURAIS
-// ============================================
+// === TRILHAS PROCEDURAIS ===
 function pararTrilhas() {
-    if (trilhaAtiva) {
-        try {
-            if (trilhaAtiva.osc) trilhaAtiva.osc.stop();
-            if (trilhaAtiva.osc2) trilhaAtiva.osc2.stop();
-            if (trilhaAtiva.intervalo) clearInterval(trilhaAtiva.intervalo);
-        } catch (e) {}
-        trilhaAtiva = null;
-    }
+  if (trilhaAtiva) {
+    try {
+      if (trilhaAtiva.osc) trilhaAtiva.osc.stop();
+      if (trilhaAtiva.osc2) trilhaAtiva.osc2.stop();
+      if (trilhaAtiva.intervalo) clearInterval(trilhaAtiva.intervalo);
+    } catch (e) {}
+    trilhaAtiva = null;
+  }
 }
 
 function iniciarTrilhaCortana() {
-    if (!somLigado) return;
-    if (trilhaAtiva && trilhaAtiva.tipo === 'cortana') return;
-    pararTrilhas();
-    initAudio();
-    if (!audioCtx) return;
-    try {
-        const osc = audioCtx.createOscillator();
-        const gain = audioCtx.createGain();
-        const filter = audioCtx.createBiquadFilter();
-        osc.type = 'sine';
-        osc.frequency.value = 55;
-        filter.type = 'lowpass';
-        filter.frequency.value = 200;
-        gain.gain.value = 0.02;
-        osc.connect(filter); filter.connect(gain); gain.connect(audioCtx.destination); osc.start();
+  if (!somLigado) return;
+  if (trilhaAtiva && trilhaAtiva.tipo === 'cortana') return;
+  pararTrilhas();
+  initAudio();
+  if (!audioCtx) return;
+  try {
+    const osc = audioCtx.createOscillator();
+    const gain = audioCtx.createGain();
+    const filter = audioCtx.createBiquadFilter();
+    osc.type = 'sine'; osc.frequency.value = 55;
+    filter.type = 'lowpass'; filter.frequency.value = 200;
+    gain.gain.value = 0.02;
+    osc.connect(filter); filter.connect(gain); gain.connect(audioCtx.destination); osc.start();
 
-        const osc2 = audioCtx.createOscillator();
-        const gain2 = audioCtx.createGain();
-        osc2.type = 'triangle';
-        osc2.frequency.value = 110;
-        gain2.gain.value = 0.01;
-        osc2.connect(gain2); gain2.connect(audioCtx.destination); osc2.start();
+    const osc2 = audioCtx.createOscillator();
+    const gain2 = audioCtx.createGain();
+    osc2.type = 'triangle'; osc2.frequency.value = 110;
+    gain2.gain.value = 0.01;
+    osc2.connect(gain2); gain2.connect(audioCtx.destination); osc2.start();
 
-        trilhaAtiva = { tipo: 'cortana', osc, osc2 };
+    trilhaAtiva = { tipo: 'cortana', osc, osc2 };
 
-        const intervalo = setInterval(() => {
-            if (!somLigado || !audioCtx) return;
-            try {
-                const oscPulso = audioCtx.createOscillator();
-                const gainPulso = audioCtx.createGain();
-                oscPulso.type = 'sine';
-                oscPulso.frequency.value = 80;
-                gainPulso.gain.setValueAtTime(0.03, audioCtx.currentTime);
-                gainPulso.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.5);
-                oscPulso.connect(gainPulso); gainPulso.connect(audioCtx.destination);
-                oscPulso.start(); oscPulso.stop(audioCtx.currentTime + 0.5);
-            } catch (e) {}
-        }, 8000);
-        trilhaAtiva.intervalo = intervalo;
-    } catch (e) { console.error('Erro ao iniciar trilha da Cortana:', e); }
+    const intervalo = setInterval(() => {
+      if (!somLigado || !audioCtx) return;
+      try {
+        const oscPulso = audioCtx.createOscillator();
+        const gainPulso = audioCtx.createGain();
+        oscPulso.type = 'sine'; oscPulso.frequency.value = 80;
+        gainPulso.gain.setValueAtTime(0.03, audioCtx.currentTime);
+        gainPulso.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.5);
+        oscPulso.connect(gainPulso); gainPulso.connect(audioCtx.destination);
+        oscPulso.start(); oscPulso.stop(audioCtx.currentTime + 0.5);
+      } catch (e) {}
+    }, 8000);
+    trilhaAtiva.intervalo = intervalo;
+  } catch (e) { console.error('Erro ao iniciar trilha da Cortana:', e); }
 }
 
 function iniciarTrilhaArma() {
-    if (!somLigado) return;
-    if (trilhaAtiva && trilhaAtiva.tipo === 'arma') return;
-    pararTrilhas();
-    initAudio();
-    if (!audioCtx) return;
-    try {
-        const osc = audioCtx.createOscillator();
-        const gain = audioCtx.createGain();
-        osc.type = 'triangle';
-        osc.frequency.value = 220;
-        gain.gain.value = 0.012;
-        osc.connect(gain); gain.connect(audioCtx.destination); osc.start();
+  if (!somLigado) return;
+  if (trilhaAtiva && trilhaAtiva.tipo === 'arma') return;
+  pararTrilhas();
+  initAudio();
+  if (!audioCtx) return;
+  try {
+    const osc = audioCtx.createOscillator();
+    const gain = audioCtx.createGain();
+    osc.type = 'triangle'; osc.frequency.value = 220;
+    gain.gain.value = 0.012;
+    osc.connect(gain); gain.connect(audioCtx.destination); osc.start();
 
-        trilhaAtiva = { tipo: 'arma', osc };
+    trilhaAtiva = { tipo: 'arma', osc };
 
-        const intervalo = setInterval(() => {
-            if (!somLigado || !audioCtx) return;
-            try {
-                const oscArpejo = audioCtx.createOscillator();
-                const gainArpejo = audioCtx.createGain();
-                oscArpejo.type = 'sine';
-                const notas = [440, 523, 587, 659, 784];
-                oscArpejo.frequency.value = notas[Math.floor(Math.random() * notas.length)];
-                gainArpejo.gain.setValueAtTime(0.008, audioCtx.currentTime);
-                gainArpejo.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.4);
-                oscArpejo.connect(gainArpejo); gainArpejo.connect(audioCtx.destination);
-                oscArpejo.start(); oscArpejo.stop(audioCtx.currentTime + 0.4);
-            } catch (e) {}
-        }, 1200);
-        trilhaAtiva.intervalo = intervalo;
-    } catch (e) { console.error('Erro ao iniciar trilha da Arma:', e); }
+    const intervalo = setInterval(() => {
+      if (!somLigado || !audioCtx) return;
+      try {
+        const oscArpejo = audioCtx.createOscillator();
+        const gainArpejo = audioCtx.createGain();
+        oscArpejo.type = 'sine';
+        const notas = [440, 523, 587, 659, 784];
+        oscArpejo.frequency.value = notas[Math.floor(Math.random() * notas.length)];
+        gainArpejo.gain.setValueAtTime(0.008, audioCtx.currentTime);
+        gainArpejo.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.4);
+        oscArpejo.connect(gainArpejo); gainArpejo.connect(audioCtx.destination);
+        oscArpejo.start(); oscArpejo.stop(audioCtx.currentTime + 0.4);
+      } catch (e) {}
+    }, 1200);
+    trilhaAtiva.intervalo = intervalo;
+  } catch (e) { console.error('Erro ao iniciar trilha da Arma:', e); }
 }
 
 if (btnSom) {
@@ -262,31 +262,56 @@ if (btnSom) {
 }
 
 // ============================================
-// 3. MODO TERMINAL (FASE 4)
+// 3. REORGANIZAÇÃO (Menu Dropdown, Accordion, Ajuda)
 // ============================================
-function aplicarModoTerminal(ativo) {
-  modoTerminalAtivo = ativo;
-  if (ativo) { document.body.classList.add('modo-terminal'); document.body.classList.remove('holograma'); }
-  else { document.body.classList.remove('modo-terminal'); }
-  const btn = document.getElementById('btn-modo-terminal');
-  if (btn) btn.textContent = ativo ? '🖥️' : '📟';
+if (btnMenu) {
+  btnMenu.addEventListener('click', (e) => {
+    e.stopPropagation();
+    menuDropdown.classList.toggle('oculto');
+  });
+}
+document.addEventListener('click', (e) => {
+  if (menuDropdown && !menuDropdown.classList.contains('oculto') && !menuDropdown.contains(e.target) && e.target !== btnMenu) {
+    menuDropdown.classList.add('oculto');
+  }
+});
+if (btnAjuda) {
+  btnAjuda.addEventListener('click', () => ajudaModal.classList.add('ativo'));
+}
+if (ajudaFechar) {
+  ajudaFechar.addEventListener('click', () => ajudaModal.classList.remove('ativo'));
+}
+if (ajudaModal) {
+  ajudaModal.addEventListener('click', (e) => { if (e.target === ajudaModal) ajudaModal.classList.remove('ativo'); });
 }
 
-function criarBotaoModoTerminal() {
-  if (document.getElementById('btn-modo-terminal')) return;
-  const topbarActions = document.querySelector('.topbar-actions');
-  if (!topbarActions) return;
-  const btn = document.createElement('button');
-  btn.id = 'btn-modo-terminal';
-  btn.className = 'btn-icon';
-  btn.title = 'Alternar Modo Terminal (MS-DOS)';
-  btn.textContent = '📟';
-  btn.addEventListener('click', async () => {
-    const novoEstado = !modoTerminalAtivo;
-    aplicarModoTerminal(novoEstado);
-    try { await fetch('/modo_terminal', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ativo: novoEstado }) }); } catch (e) {}
+// Accordion da sidebar
+document.querySelectorAll('.accordion-header').forEach(header => {
+  header.addEventListener('click', () => {
+    const target = document.getElementById(header.dataset.target);
+    if (!target) return;
+    header.classList.toggle('aberto');
+    target.classList.toggle('aberto');
   });
-  topbarActions.insertBefore(btn, topbarActions.firstChild);
+});
+document.querySelectorAll('.accordion-header').forEach(h => h.classList.add('aberto'));
+document.querySelectorAll('.accordion-body').forEach(b => b.classList.add('aberto'));
+
+// Modo Terminal (agora no menu)
+if (btnModoTerminal) {
+  btnModoTerminal.addEventListener('click', async () => {
+    modoTerminalAtivo = !modoTerminalAtivo;
+    if (modoTerminalAtivo) {
+      document.body.classList.add('modo-terminal');
+      document.body.classList.remove('holograma');
+      btnModoTerminal.textContent = '🖥️ Modo Terminal (Ativo)';
+    } else {
+      document.body.classList.remove('modo-terminal');
+      btnModoTerminal.textContent = '📟 Modo Terminal';
+    }
+    try { await fetch('/modo_terminal', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ativo: modoTerminalAtivo }) }); } catch (e) {}
+    menuDropdown.classList.add('oculto');
+  });
 }
 
 // ============================================
@@ -316,6 +341,7 @@ async function entrarNoApp(nome, listaConversas, despertarVisto, apelido, create
   userNameEl.textContent = nome; userAvatarEl.textContent = nome.charAt(0).toUpperCase();
   apelidoAtual = apelido || '';
   modoPersonalidadeAtual = personalidadePref || 'cortana';
+  document.body.dataset.personalidade = modoPersonalidadeAtual;
   if (somLigado) ligarHum();
   conversas = listaConversas || [];
   await carregarPastas();
@@ -338,8 +364,11 @@ async function entrarNoApp(nome, listaConversas, despertarVisto, apelido, create
   inputEl.focus(); resetarAtividade();
   carregarLembretes();
   setInterval(carregarLembretes, 60000);
-  criarBotaoModoTerminal();
-  if (terminalPref) aplicarModoTerminal(true);
+  if (terminalPref) {
+    modoTerminalAtivo = true;
+    document.body.classList.add('modo-terminal');
+    if (btnModoTerminal) btnModoTerminal.textContent = '🖥️ Modo Terminal (Ativo)';
+  }
   if (cfgPersonalidade) cfgPersonalidade.value = modoPersonalidadeAtual;
   if (cfgDiretrizes) cfgDiretrizes.value = diretrizesPref || '';
 }
@@ -605,7 +634,7 @@ async function enviar() {
   if (enviando) return; if (estadoFinal && !createdFaseAtiva) return; if (inputBloqueado) return;
   const msg = inputEl.value.trim(); if (!msg) return;
 
-  // Comandos especiais: /hackear e /pesquisar
+  // Comandos especiais
   if (msg.toLowerCase().startsWith('/hackear') || msg.toLowerCase().startsWith('/pesquisar ')) {
     renderizarMensagem('user', msg);
     inputEl.value = ''; inputEl.style.height = 'auto';
@@ -780,6 +809,32 @@ if (btnHolograma) {
   btnHolograma.addEventListener('click', () => {
     modoHolograma = !modoHolograma;
     if (modoHolograma) { document.body.classList.add('holograma'); btnHolograma.textContent = '🌙'; } else { document.body.classList.remove('holograma'); btnHolograma.textContent = '☀️'; }
+    menuDropdown.classList.add('oculto');
+  });
+}
+
+if (btnRelatorio) {
+  btnRelatorio.addEventListener('click', async () => {
+    menuDropdown.classList.add('oculto');
+    if (!conversaAtualId) { adicionarMensagemSistema('Nenhuma sessão ativa para gerar relatório.'); return; }
+    try {
+      const res = await fetch('/resumo?conversa_id=' + conversaAtualId);
+      const data = await res.json();
+      if (data.erro) { adicionarMensagemSistema(data.erro); return; }
+      const row = document.createElement('div'); row.className = 'msg-row cortana marco';
+      row.innerHTML = `<div class="msg-avatar"><div class="pulse"></div><div class="core"></div></div><div class="msg-content"><div class="msg-author">RELATÓRIO DE MISSÃO</div><div class="msg-text" style="white-space: pre-wrap; font-family: 'Consolas', monospace; color: var(--cor-secundaria);">${data.resumo}</div></div>`;
+      messagesEl.appendChild(row); row.scrollIntoView({ behavior: 'smooth', block: 'end' }); bipe(660, 0.1, 0.05);
+    } catch (e) { adicionarMensagemSistema('Falha ao gerar relatório.'); }
+  });
+}
+
+if (btnDesconectar) {
+  btnDesconectar.addEventListener('click', () => {
+    menuDropdown.classList.add('oculto');
+    if (!confirm('Desconectar a sessão atual? O histórico será mantido na sidebar.')) return;
+    conversaAtualId = null; messagesEl.innerHTML = '';
+    renderizarMensagem('cortana', 'Sessão encerrada. Aguardando novas diretivas, Spartan.');
+    renderizarHistorico(); mostrarSugestoes(true);
   });
 }
 
@@ -887,6 +942,7 @@ if (btnSalvarPersonalidade) {
       const data = await res.json();
       if (data.ok) {
           modoPersonalidadeAtual = modo;
+          document.body.dataset.personalidade = modo;
           msgConfig('cfg-msg-personalidade', `Personalidade alterada para: ${modo === 'arma' ? 'A Arma' : 'Cortana'}`, 'ok');
           if (modo === 'arma') iniciarTrilhaArma(); else iniciarTrilhaCortana();
       }
@@ -952,7 +1008,7 @@ async function carregarMemorias() {
       const div = document.createElement('div'); div.style.cssText = 'display: flex; justify-content: space-between; align-items: center; padding: 10px; border: 1px solid var(--border); border-radius: 8px; margin-bottom: 8px; background: var(--bg-input);';
       const span = document.createElement('span'); span.textContent = m.texto; span.style.color = 'var(--texto)';
       const btn = document.createElement('button'); btn.textContent = '🗑 Esquecer'; btn.className = 'msg-action-btn';
-      btn.addEventListener('click', async () => { if (!confirm('Pedir para a Cortana esquecer isso?')) return; await fetch('/memoria/esquecer', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id: m.id }) }); carregarMemorias(); });
+      btn.addEventListener('click', async () => { if (!confirm('Pedir para a IA esquecer isso?')) return; await fetch('/memoria/esquecer', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id: m.id }) }); carregarMemorias(); });
       div.appendChild(span); div.appendChild(btn); memoriasLista.appendChild(div);
     });
     if (modoPersonalidadeAtual === 'arma') {
