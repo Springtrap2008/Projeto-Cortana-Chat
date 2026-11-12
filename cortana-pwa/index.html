@@ -18,25 +18,25 @@
             font-family: -apple-system, 'Segoe UI', system-ui, sans-serif;
         }
         
-        /* O CHAT ocupa a tela inteira */
-                /* O CHAT ocupa a tela inteira, mas corta o rodapé */
+        /* O CHAT ocupa a tela inteira, mas estica e puxa para fora para esconder as listras */
         #frame-container {
-            position: fixed; top: 0; left: 0; right: 0; bottom: 0;
-            overflow: hidden; /* Esconde qualquer coisa que passe do limite */
+            position: fixed; 
+            top: -5px; left: -5px; right: -5px; bottom: -80px; /* Puxa as bordas para fora da tela */
+            overflow: hidden;
+            z-index: 1;
         }
         
         iframe { 
             width: 100%; 
-            /* Faz o iframe ser mais alto que a tela para empurrar o rodapé do Streamlit para fora */
-            height: calc(100% + 75px); 
+            height: 100%; 
             border: none; 
             display: block; 
         }
         
-        /* BOTÃO FLUTUANTE QUE FICA ACIMA DE TUDO */#fr
+        /* BOTÃO FLUTUANTE BLINDADO (Sempre visível) */
         #btn-notif {
             position: fixed;
-            bottom: calc(30px + env(safe-area-inset-bottom)); /* Fica logo acima do rodapé */
+            bottom: calc(30px + env(safe-area-inset-bottom));
             right: 20px;
             background: #00d4ff;
             color: #171717;
@@ -46,7 +46,7 @@
             font-size: 14px;
             font-weight: 700;
             cursor: pointer;
-            z-index: 2147483647; /* O maior z-index possível */
+            z-index: 9999999; /* O maior z-index possível */
             box-shadow: 0 4px 12px rgba(0, 212, 255, 0.4);
             display: flex;
             align-items: center;
@@ -62,7 +62,7 @@
         #copy-panel {
             position: fixed; top: 0; left: 0; right: 0; bottom: 0;
             background: rgba(23, 23, 23, 0.95); color: #ececec; padding: 20px;
-            z-index: 2147483647; overflow: auto; display: none;
+            z-index: 99999999; overflow: auto; display: none;
             backdrop-filter: blur(4px);
         }
         #copy-panel.show { display: block; }
@@ -85,14 +85,12 @@
 <body>
 
 <div id="frame-container">
-    <!-- URL do Streamlit com ?embed=true -->
+    <!-- URL do Streamlit -->
     <iframe id="cortana-frame" src="https://projeto-cortana-chat-2wqvs4zfnubjktjzzui4sb.streamlit.app/?embed=true&embed_options=hide_toolbar" title="Cortana"></iframe>
 </div>
 
-<!-- O BOTÃO FLUTUANTE -->
 <button id="btn-notif">🔔 Ativar Notificações</button>
 
-<!-- PAINEL DO JSON -->
 <div id="copy-panel">
     <h2>Inscrição Push</h2>
     <p>Copie o texto abaixo, salve no arquivo <code>subscription.json</code> na pasta do seu app Streamlit e rode o script <code>enviar_push.py</code>.</p>
@@ -103,7 +101,7 @@
 
 <script>
 // COLE SUA CHAVE PÚBLICA VAPID AQUI (mantenha as aspas)
-const VAPID_PUBLIC_KEY = "BEZVuXj2T76FMhKVb9p1lzTfsziHg6yMht9MAzvALXSTllzgHpUpJeUd9qFT47iDBryI5g19ivw03kQ4o7x0IrU";
+const VAPID_PUBLIC_KEY = "SUA_CHAVE_PUBLICA_VAPID_AQUI";
 
 function urlBase64ToUint8Array(base64String) {
     const padding = "=".repeat((4 - base64String.length % 4) % 4);
