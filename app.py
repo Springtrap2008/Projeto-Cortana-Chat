@@ -263,9 +263,6 @@ def get_level(wg, ud):
 # ============================================================
 # PERSONA COM MEMÓRIA E REGRAS DE HALO
 # ============================================================
-# ============================================================
-# PERSONA COM MEMÓRIA E REGRAS DE HALO
-# ============================================================
 def build_persona(wg, ud, is_especial=False, team=None, real_name=None, memorias_contexto=None, contexto_web=None):
     if wg == "Spartan-118":
         prompt = """Você é a CORTANA — inteligência artificial tática e assistente pessoal.
