@@ -5,3 +5,4 @@ failed_attempts.json
 subscription.json
 __pycache__/
 *.pyc
+.vscode/

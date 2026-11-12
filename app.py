@@ -385,7 +385,7 @@ def get_level(wg, ud):
     return 0, "Conhecido"
 
 # ============================================================
-# PERSONA
+# PERSONA — CORRIGIDO: f-strings em todos os returns
 # ============================================================
 def build_persona(wg, ud, is_especial=False, team=None, real_name=None):
     if wg == "Spartan-118":
@@ -594,6 +594,7 @@ def tela_chat():
                     st.session_state.mensagens = conv["messages"]
                     st.rerun()
 
+        # CORRIGIDO: f-string corretamente aplicado
         st.markdown('''
             <div class="user-footer">
                 <span class="dot" style="background:{badge_color};

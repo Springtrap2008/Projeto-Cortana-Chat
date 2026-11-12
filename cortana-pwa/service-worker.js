@@ -8,7 +8,6 @@ self.addEventListener("activate", event => {
     event.waitUntil(clients.claim());
 });
 
-// Recebe o push enviado pelo servidor
 self.addEventListener("push", event => {
     let data = { title: "Cortana", body: "Nova notificação." };
     if (event.data) {
@@ -29,11 +28,9 @@ self.addEventListener("push", event => {
         data: { url: "./index.html" }
     };
 
-    // CRÍTICO para iOS: usar waitUntil
     event.waitUntil(self.registration.showNotification(data.title, options));
 });
 
-// Ao tocar na notificação, abre o PWA
 self.addEventListener("notificationclick", event => {
     event.notification.close();
     event.waitUntil(

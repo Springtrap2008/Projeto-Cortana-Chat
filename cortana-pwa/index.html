@@ -66,7 +66,7 @@
 
 <div id="frame-container">
     <!-- SUBSTITUA pela URL do seu app Streamlit + ?embed=true -->
-    <iframe id="cortana-frame" src="https://seu-app.streamlit.app/?embed=true" title="Cortana"></iframe>
+    <iframe id="cortana-frame" src="https://SEU-APP.streamlit.app/?embed=true" title="Cortana"></iframe>
 </div>
 
 <div id="copy-panel">
@@ -79,9 +79,9 @@
 
 <script>
 // ============================================================
-// COLE AQUI A CHAVE PÚBLICA VAPID (gerada no Passo 3)
+// COLE AQUI A CHAVE PÚBLICA VAPID NOVA (base64url, começa com "B")
 // ============================================================
-const VAPID_PUBLIC_KEY = "BGRvvM338m4KnKvads_rS3Nz5uoffP0VwHnKAgWMrZIb4Lg89kPFg_MtGBJCrTdkt1W4YuVou9wZYEogRbV2w-M";
+const VAPID_PUBLIC_KEY = "COLE_AQUI_A_CHAVE_PUBLICA_NOVA";
 
 // ------------------------------------------------------------
 // Utilities
@@ -128,11 +128,9 @@ async function ativarNotificacoes() {
         });
     }
 
-    // Mostra o JSON da inscrição para o usuário copiar
     document.getElementById("sub-json").value = JSON.stringify(sub, null, 2);
     document.getElementById("copy-panel").classList.add("show");
 
-    // Salva também no localStorage
     localStorage.setItem("cortana_subscription", JSON.stringify(sub));
 
     btn.textContent = "Notificações Ativas";
@@ -142,7 +140,6 @@ async function ativarNotificacoes() {
 
 btn.addEventListener("click", ativarNotificacoes);
 
-// Se já estava inscrito, atualiza o botão
 navigator.serviceWorker.ready.then(async reg => {
     const sub = await reg.pushManager.getSubscription();
     if (sub) {

@@ -3,9 +3,9 @@ import json, sys
 from pywebpush import webpush, WebPushException
 
 # --- CONFIGURAÇÃO ---
-# Para testar rápido, cole os valores aqui direto:
+# COLE AQUI SUA CHAVE PRIVADA VAPID NOVA (regenerada)
 VAPID_PRIVATE_KEY = """-----BEGIN PRIVATE KEY-----
-COLE_AQUI_A_CHAVE_PRIVADA
+BKCeabFNVTHhx4h3wiKY8cAJUYZEXUAprv-JaCo35vskE2-RBYkczZA7x-j6V54nwjsQ9ahn0MkJpLpgZP6zeGQ
 -----END PRIVATE KEY-----
 """
 VAPID_SUBJECT = "mailto:seu-email@exemplo.com"
