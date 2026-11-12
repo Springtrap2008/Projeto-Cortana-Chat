@@ -19,12 +19,21 @@
         }
         
         /* O CHAT ocupa a tela inteira */
+                /* O CHAT ocupa a tela inteira, mas corta o rodapé */
         #frame-container {
             position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+            overflow: hidden; /* Esconde qualquer coisa que passe do limite */
         }
-        iframe { width: 100%; height: 100%; border: none; display: block; }
         
-        /* BOTÃO FLUTUANTE QUE FICA ACIMA DE TUDO */
+        iframe { 
+            width: 100%; 
+            /* Faz o iframe ser mais alto que a tela para empurrar o rodapé do Streamlit para fora */
+            height: calc(100% + 75px); 
+            border: none; 
+            display: block; 
+        }
+        
+        /* BOTÃO FLUTUANTE QUE FICA ACIMA DE TUDO */#fr
         #btn-notif {
             position: fixed;
             bottom: calc(30px + env(safe-area-inset-bottom)); /* Fica logo acima do rodapé */
