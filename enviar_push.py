@@ -8,7 +8,7 @@ VAPID_PRIVATE_KEY = """-----BEGIN PRIVATE KEY-----
 BKCeabFNVTHhx4h3wiKY8cAJUYZEXUAprv-JaCo35vskE2-RBYkczZA7x-j6V54nwjsQ9ahn0MkJpLpgZP6zeGQ
 -----END PRIVATE KEY-----
 """
-VAPID_SUBJECT = "mailto:seu-email@exemplo.com"
+VAPID_SUBJECT = "mailto:nicolas,kfranca@gmail.com"
 SUBSCRIPTION_FILE = "subscription.json"
 
 
