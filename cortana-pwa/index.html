@@ -1,0 +1,176 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+    <title>Cortana</title>
+    <link rel="manifest" href="manifest.json" />
+    <link rel="apple-touch-icon" href="icons/icon-192.png" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="apple-mobile-web-app-title" content="Cortana" />
+    <meta name="theme-color" content="#00d4ff" />
+    <style>
+        * { box-sizing: border-box; }
+        html, body {
+            margin: 0; padding: 0; height: 100%;
+            overflow: hidden; background-color: #212121;
+            font-family: -apple-system, 'Segoe UI', system-ui, sans-serif;
+        }
+        #bar {
+            position: fixed; top: 0; left: 0; right: 0; height: 44px;
+            background: #171717; color: #ececec;
+            display: flex; align-items: center; justify-content: space-between;
+            padding: 0 14px; z-index: 1000;
+            border-bottom: 1px solid #2f2f2f;
+            font-size: 14px;
+        }
+        #bar .title { color: #00d4ff; font-weight: 600; letter-spacing: 2px; }
+        #bar button {
+            background: #00d4ff; color: #171717; border: none;
+            border-radius: 14px; padding: 6px 12px; font-size: 12px;
+            font-weight: 600; cursor: pointer;
+        }
+        #bar button:disabled { background: #2f2f2f; color: #5a6577; }
+        #frame-container {
+            position: fixed; top: 44px; left: 0; right: 0; bottom: 0;
+        }
+        iframe { width: 100%; height: 100%; border: none; display: block; }
+        #copy-panel {
+            position: fixed; top: 44px; left: 0; right: 0; bottom: 0;
+            background: #171717; color: #ececec; padding: 20px;
+            z-index: 900; overflow: auto; display: none;
+        }
+        #copy-panel.show { display: block; }
+        #copy-panel h2 { color: #00d4ff; font-size: 16px; margin-top: 0; }
+        #copy-panel p { font-size: 13px; color: #b4b4b4; line-height: 1.5; }
+        #copy-panel textarea {
+            width: 100%; height: 200px; background: #2f2f2f; color: #ececec;
+            border: 1px solid #3f3f3f; border-radius: 8px; padding: 10px;
+            font-family: 'Consolas', monospace; font-size: 11px;
+            resize: vertical;
+        }
+        #copy-panel button {
+            background: #00d4ff; color: #171717; border: none;
+            border-radius: 8px; padding: 10px 16px; font-weight: 600;
+            margin-top: 10px; cursor: pointer;
+        }
+    </style>
+</head>
+<body>
+
+<div id="bar">
+    <span class="title">CORTANA</span>
+    <button id="btn-notif">Ativar Notificações</button>
+</div>
+
+<div id="frame-container">
+    <!-- SUBSTITUA pela URL do seu app Streamlit + ?embed=true -->
+    <iframe id="cortana-frame" src="https://seu-app.streamlit.app/?embed=true" title="Cortana"></iframe>
+</div>
+
+<div id="copy-panel">
+    <h2>Inscrição Push</h2>
+    <p>Copie o JSON abaixo e salve no arquivo <code>subscription.json</code> na pasta do seu app Streamlit.</p>
+    <textarea id="sub-json" readonly></textarea>
+    <button id="btn-copy">Copiar JSON</button>
+    <button id="btn-close">Fechar</button>
+</div>
+
+<script>
+// ============================================================
+// COLE AQUI A CHAVE PÚBLICA VAPID (gerada no Passo 3)
+// ============================================================
+const VAPID_PUBLIC_KEY = "BGRvvM338m4KnKvads_rS3Nz5uoffP0VwHnKAgWMrZIb4Lg89kPFg_MtGBJCrTdkt1W4YuVou9wZYEogRbV2w-M";
+
+// ------------------------------------------------------------
+// Utilities
+// ------------------------------------------------------------
+function urlBase64ToUint8Array(base64String) {
+    const padding = "=".repeat((4 - base64String.length % 4) % 4);
+    const base64 = (base64String + padding).replace(/-/g, "+").replace(/_/g, "/");
+    const rawData = atob(base64);
+    return Uint8Array.from([...rawData].map(c => c.charCodeAt(0)));
+}
+
+// ------------------------------------------------------------
+// Registra o Service Worker
+// ------------------------------------------------------------
+if ("serviceWorker" in navigator) {
+    navigator.serviceWorker.register("service-worker.js", { scope: "./" })
+        .then(reg => console.log("SW registrado:", reg.scope))
+        .catch(err => console.error("Erro SW:", err));
+}
+
+// ------------------------------------------------------------
+// Botão "Ativar Notificações"
+// ------------------------------------------------------------
+const btn = document.getElementById("btn-notif");
+
+async function ativarNotificacoes() {
+    if (!("serviceWorker" in navigator) || !("PushManager" in window)) {
+        alert("Push não suportado neste navegador. Use iOS 16.4+ e adicione à Tela de Início.");
+        return;
+    }
+    const permission = await Notification.requestPermission();
+    if (permission !== "granted") {
+        alert("Permissão de notificação negada. Ative nos Ajustes do iPhone > Cortana > Notificações.");
+        return;
+    }
+
+    const reg = await navigator.serviceWorker.ready;
+    let sub = await reg.pushManager.getSubscription();
+
+    if (!sub) {
+        sub = await reg.pushManager.subscribe({
+            userVisibleOnly: true,
+            applicationServerKey: urlBase64ToUint8Array(VAPID_PUBLIC_KEY)
+        });
+    }
+
+    // Mostra o JSON da inscrição para o usuário copiar
+    document.getElementById("sub-json").value = JSON.stringify(sub, null, 2);
+    document.getElementById("copy-panel").classList.add("show");
+
+    // Salva também no localStorage
+    localStorage.setItem("cortana_subscription", JSON.stringify(sub));
+
+    btn.textContent = "Notificações Ativas";
+    btn.disabled = true;
+    btn.style.background = "#00ff9d";
+}
+
+btn.addEventListener("click", ativarNotificacoes);
+
+// Se já estava inscrito, atualiza o botão
+navigator.serviceWorker.ready.then(async reg => {
+    const sub = await reg.pushManager.getSubscription();
+    if (sub) {
+        btn.textContent = "Notificações Ativas";
+        btn.disabled = true;
+        btn.style.background = "#00ff9d";
+    }
+});
+
+// ------------------------------------------------------------
+// Botões do painel de cópia
+// ------------------------------------------------------------
+document.getElementById("btn-copy").addEventListener("click", async () => {
+    const text = document.getElementById("sub-json").value;
+    try {
+        await navigator.clipboard.writeText(text);
+        alert("JSON copiado. Cole em subscription.json");
+    } catch (e) {
+        document.getElementById("sub-json").select();
+        document.execCommand("copy");
+        alert("JSON copiado. Cole em subscription.json");
+    }
+});
+
+document.getElementById("btn-close").addEventListener("click", () => {
+    document.getElementById("copy-panel").classList.remove("show");
+});
+</script>
+
+</body>
+</html>
