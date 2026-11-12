@@ -65,7 +65,7 @@
             cursor: pointer;
             z-index: 9999999;
             box-shadow: 0 4px 12px rgba(0, 212, 255, 0.4);
-            display: none !important; /* <-- MUDANÇA AQUI */
+            display: none; /* <-- MUDANÇA AQUI */
             align-items: center;
             gap: 8px;
         }
@@ -133,8 +133,6 @@ if ("serviceWorker" in navigator) {
         .catch(err => console.error("Erro SW:", err));
 }
 
-const btn = document.getElementById("btn-notif");
-
 async function ativarNotificacoes() {
     if (!("serviceWorker" in navigator) || !("PushManager" in window)) {
         alert("Push não suportado. Use iOS 16.4+ e adicione à Tela de Início.");
@@ -166,13 +164,23 @@ async function ativarNotificacoes() {
 
 btn.addEventListener("click", ativarNotificacoes);
 
+const btn = document.getElementById("btn-notif");
+
+// Lógica para mostrar o botão
 navigator.serviceWorker.ready.then(async reg => {
     const sub = await reg.pushManager.getSubscription();
-    const btn = document.getElementById("btn-notif");
     
-    // Se já tem inscrição salva, ou se o navegador já tem o push ativo, esconde o botão
-    if (sub || localStorage.getItem("cortana_subscription")) {
-        btn.style.display = "none"; // A MÁGICA ACONTECE AQUI: o botão desaparece
+    // Se a URL tiver ?reset=true, MOSTRA o botão (para você pegar um JSON novo)
+    if (window.location.search.includes("reset=true")) {
+        btn.style.display = "flex";
+    } 
+    // Se já tem inscrição e NÃO pediu reset, MANTÉM escondido
+    else if (sub) {
+        btn.style.display = "none";
+    } 
+    // Se não tem inscrição de jeito nenhum, MOSTRA o botão
+    else {
+        btn.style.display = "flex";
     }
 });
 
