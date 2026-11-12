@@ -90,8 +90,8 @@ def init_memory():
 
     st.info("🧠 Carregando modelo de IA (pode demorar na primeira vez)...")
     try:
-        # Força o modelo a rodar na CPU para evitar travamentos no Windows
-        embedder = SentenceTransformer('all-MiniLM-L6-v2', device='cpu')
+        # O SEGREDO ESTÁ AQUI: local_files_only=True impede que ele trave tentando acessar a internet
+        embedder = SentenceTransformer('all-MiniLM-L6-v2', device='cpu', local_files_only=True)
     except Exception as e:
         st.error(f"Erro no Modelo de IA: {e}")
         st.stop()
