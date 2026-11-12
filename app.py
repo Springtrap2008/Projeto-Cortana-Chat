@@ -73,13 +73,29 @@ except Exception as e:
     st.error(f"⚠️ Erro nas credenciais (secrets.toml): {e}")
     st.stop()
 
-@st.cache_resource
+@st.cache_resource(show_spinner=False)
 def init_memory():
-    client = QdrantClient(url=QDRANT_URL, api_key=QDRANT_API_KEY)
-    embedder = SentenceTransformer('all-MiniLM-L6-v2')
-    collection_name = "cortana_memoria"
-    if not client.collection_exists(collection_name):
-        client.create_collection(collection_name=collection_name, vectors_config=VectorParams(size=384, distance=Distance.COSINE))
+    st.info("🔄 Conectando ao banco de memória (Qdrant)...")
+    try:
+        client = QdrantClient(url=QDRANT_URL, api_key=QDRANT_API_KEY, timeout=10)
+        collection_name = "cortana_memoria"
+        if not client.collection_exists(collection_name):
+            client.create_collection(
+                collection_name=collection_name, 
+                vectors_config=VectorParams(size=384, distance=Distance.COSINE)
+            )
+    except Exception as e:
+        st.error(f"Erro no Qdrant: {e}")
+        st.stop()
+
+    st.info("🧠 Carregando modelo de IA (pode demorar na primeira vez)...")
+    try:
+        # Força o modelo a rodar na CPU para evitar travamentos no Windows
+        embedder = SentenceTransformer('all-MiniLM-L6-v2', device='cpu')
+    except Exception as e:
+        st.error(f"Erro no Modelo de IA: {e}")
+        st.stop()
+
     return client, embedder, collection_name
 
 qdrant_client, embedder, COLLECTION_NAME = init_memory()
