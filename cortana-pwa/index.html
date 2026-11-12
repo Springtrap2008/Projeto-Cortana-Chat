@@ -151,9 +151,11 @@ btn.addEventListener("click", ativarNotificacoes);
 
 navigator.serviceWorker.ready.then(async reg => {
     const sub = await reg.pushManager.getSubscription();
-    if (sub) {
-        btn.textContent = "✅ Notificações Ativas";
-        btn.disabled = true;
+    const btn = document.getElementById("btn-notif");
+    
+    // Se já tem inscrição salva, ou se o navegador já tem o push ativo, esconde o botão
+    if (sub || localStorage.getItem("cortana_subscription")) {
+        btn.style.display = "none"; // A MÁGICA ACONTECE AQUI: o botão desaparece
     }
 });
 
