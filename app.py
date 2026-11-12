@@ -2,15 +2,20 @@
 # CORTANA — app.py completo com Web Push, Memória e Busca em Halo
 # ============================================================
 
+import os
+os.environ["HF_HUB_DISABLE_SYMLINKS_WARNING"] = "1"
+os.environ["TOKENIZERS_PARALLELISM"] = "false"
+
 import streamlit as st
 from groq import Groq
-import json, os, uuid, time
+import json, uuid, time
 from datetime import datetime
 from pywebpush import webpush, WebPushException
-from sentence_transformers import SentenceTransformer
+from fastembed import TextEmbedding
 from qdrant_client import QdrantClient
 from qdrant_client.models import Distance, VectorParams, PointStruct
-from duckduckgo_search import DDGS  # NOVO: Ferramenta de busca
+
+from duckduckgo_search import DDGS
 
 # ============================================================
 # CONFIG E CSS (Mantidos iguais)
@@ -61,7 +66,7 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 # ============================================================
-# SECRETS E MEMÓRIA
+# SECRETS
 # ============================================================
 try:
     GROQ_API_KEY = st.secrets["groq_api_key"]
@@ -73,9 +78,11 @@ except Exception as e:
     st.error(f"⚠️ Erro nas credenciais (secrets.toml): {e}")
     st.stop()
 
+# ============================================================
+# INICIALIZAÇÃO DA MEMÓRIA (QDRANT + FASTEMBED)
+# ============================================================
 @st.cache_resource(show_spinner=False)
 def init_memory():
-    st.info("🔄 Conectando ao banco de memória (Qdrant)...")
     try:
         client = QdrantClient(url=QDRANT_URL, api_key=QDRANT_API_KEY, timeout=10)
         collection_name = "cortana_memoria"
@@ -84,55 +91,57 @@ def init_memory():
                 collection_name=collection_name, 
                 vectors_config=VectorParams(size=384, distance=Distance.COSINE)
             )
+        
+        # O FastEmbed é leve e não trava no Windows
+        embedder = TextEmbedding(model_name="BAAI/bge-small-en-v1.5")
+        return client, embedder, collection_name
     except Exception as e:
-        st.error(f"Erro no Qdrant: {e}")
-        st.stop()
-
-    st.info("🧠 Carregando modelo de IA (pode demorar na primeira vez)...")
-    try:
-        # O SEGREDO ESTÁ AQUI: local_files_only=True impede que ele trave tentando acessar a internet
-        embedder = SentenceTransformer('all-MiniLM-L6-v2', device='cpu', local_files_only=True)
-    except Exception as e:
-        st.error(f"Erro no Modelo de IA: {e}")
-        st.stop()
-
-    return client, embedder, collection_name
-
-qdrant_client, embedder, COLLECTION_NAME = init_memory()
+        return None, None, str(e)
 
 def salvar_memoria(texto: str, role: str, user_id: str):
     if not texto.strip(): return
     try:
-        vetor = embedder.encode(texto).tolist()
-        ponto = PointStruct(id=str(uuid.uuid4()), vector=vetor, payload={"texto": texto, "role": role, "user_id": user_id})
-        qdrant_client.upsert(collection_name=COLLECTION_NAME, points=[ponto])
-    except Exception: pass
+        qdrant, emb, coll = init_memory()
+        if not qdrant: return
+        vetor = list(emb.embed([texto]))[0].tolist()
+        ponto = PointStruct(
+            id=str(uuid.uuid4()),
+            vector=vetor,
+            payload={"texto": texto, "role": role, "user_id": user_id}
+        )
+        qdrant.upsert(collection_name=coll, points=[ponto])
+    except Exception:
+        pass
 
 def buscar_memorias(pergunta: str, user_id: str, limite: int = 4):
     try:
-        vetor_pergunta = embedder.encode(pergunta).tolist()
-        resultados = qdrant_client.search(collection_name=COLLECTION_NAME, query_vector=vetor_pergunta, query_filter={"must": [{"key": "user_id", "match": {"value": user_id}}]}, limit=limite)
+        qdrant, emb, coll = init_memory()
+        if not qdrant: return []
+        vetor_pergunta = list(emb.embed([pergunta]))[0].tolist()
+        resultados = qdrant.search(
+            collection_name=coll,
+            query_vector=vetor_pergunta,
+            query_filter={"must": [{"key": "user_id", "match": {"value": user_id}}]},
+            limit=limite
+        )
         return [hit.payload["texto"] for hit in resultados]
-    except Exception: return []
+    except Exception: 
+        return []
 
 # ============================================================
 # BUSCA NA WEB DE HALO (Halopedia -> HPB -> Fandom)
 # ============================================================
 def buscar_halo_web(pergunta: str):
-    """Busca informações na Halopedia, HPB e Fandom."""
-    # Lista de domínios na ordem de prioridade
     sites = ["halopedia.org", "haloprojectbrasil.com.br", "halo.fandom.com"]
-    
     try:
         with DDGS() as ddgs:
             for site in sites:
-                # Faz a busca restrita ao site
                 resultados = list(ddgs.text(f"site:{site} {pergunta}", max_results=1))
                 if resultados:
                     texto = resultados[0]['body']
                     link = resultados[0]['href']
                     return f"Fonte: {site} ({link})\nConteúdo original: {texto}"
-    except Exception as e:
+    except Exception:
         pass
     return None
 
@@ -151,7 +160,7 @@ def enviar_notificacao_push(titulo: str, mensagem: str) -> bool:
     except Exception: return False
 
 # ============================================================
-# SPARTANS E PERSONAGENS (Mantidos)
+# SPARTANS E PERSONAGENS (Dicionários)
 # ============================================================
 SPARTANS_COM_TRATAMENTO_ESPECIAL = {
     "Spartan-117": {"nome_real": "John", "senha": "07032511"}, "Spartan-104": {"nome_real": "Frederic", "senha": "03042511"},
@@ -335,29 +344,29 @@ REGRAS DE LORE E TRADUÇÃO (MUITO IMPORTANTE):
     return prompt
 
 # ============================================================
-# SESSION STATE E UI
+# SESSION STATE E UI (Agora com a indentação correta!)
 # ============================================================
-    _defaults = {"autenticado": False, "usuario": None, "conversas": [], "current_id": None, "mensagens": [], "modo": "login"}
-    for k, v in _defaults.items():
-        if k not in st.session_state: st.session_state[k] = v
+_defaults = {"autenticado": False, "usuario": None, "conversas": [], "current_id": None, "mensagens": [], "modo": "login"}
+for k, v in _defaults.items():
+    if k not in st.session_state: st.session_state[k] = v
 
-    def nova_conversa():
-        cid = str(uuid.uuid4())[:8]
-        conv = {"id": cid, "title": "Nova conversa", "messages": []}
-        st.session_state.conversas.append(conv)
-        st.session_state.current_id = cid
-        st.session_state.mensagens = conv["messages"]
+def nova_conversa():
+    cid = str(uuid.uuid4())[:8]
+    conv = {"id": cid, "title": "Nova conversa", "messages": []}
+    st.session_state.conversas.append(conv)
+    st.session_state.current_id = cid
+    st.session_state.mensagens = conv["messages"]
 
-    def get_conversa_atual():
-        for c in st.session_state.conversas:
-            if c["id"] == st.session_state.current_id: return c
-        return None
+def get_conversa_atual():
+    for c in st.session_state.conversas:
+        if c["id"] == st.session_state.current_id: return c
+    return None
 
-    def tela_auth():
-        st.markdown('<div class="login-title">Cor<span class="accent">tana</span></div>', unsafe_allow_html=True)
-        st.markdown('<div class="login-subtitle">Identifique-se para continuar</div>', unsafe_allow_html=True)
-        if st.session_state.modo == "login":
-            col1, col2, col3 = st.columns([1, 1.4, 1])
+def tela_auth():
+    st.markdown('<div class="login-title">Cor<span class="accent">tana</span></div>', unsafe_allow_html=True)
+    st.markdown('<div class="login-subtitle">Identifique-se para continuar</div>', unsafe_allow_html=True)
+    if st.session_state.modo == "login":
+        col1, col2, col3 = st.columns([1, 1.4, 1])
         with col2:
             wg = st.text_input("Número de Serviço", placeholder="Ex: Spartan-129", key="login_wg", label_visibility="collapsed")
             nome = st.text_input("Nome", placeholder="Seu nome real", key="login_nome", label_visibility="collapsed")
@@ -376,8 +385,8 @@ REGRAS DE LORE E TRADUÇÃO (MUITO IMPORTANTE):
                 else: st.error("Credenciais inválidas.")
             if st.button("Criar conta", key="toggle_btn", use_container_width=True):
                 st.session_state.modo = "registro"; st.rerun()
-            else:
-                col1, col2, col3 = st.columns([1, 1.4, 1])
+    else:
+        col1, col2, col3 = st.columns([1, 1.4, 1])
         with col2:
             wg = st.text_input("Número de Serviço", placeholder="Escolha um Número", key="reg_wg", label_visibility="collapsed")
             nome = st.text_input("Nome", placeholder="Seu nome real", key="reg_nome", label_visibility="collapsed")
@@ -390,12 +399,12 @@ REGRAS DE LORE E TRADUÇÃO (MUITO IMPORTANTE):
             if st.button("Voltar ao login", key="toggle_btn", use_container_width=True):
                 st.session_state.modo = "login"; st.rerun()
 
-    def tela_chat():
-        wg = st.session_state.usuario["nome_guerra"]
-        is_esp = wg in SPARTANS_COM_TRATAMENTO_ESPECIAL
-        is_hum = st.session_state.usuario.get("humano", False)
-        team = get_team(wg) if is_esp else None
-        ud = load_user_data()
+def tela_chat():
+    wg      = st.session_state.usuario["nome_guerra"]
+    is_esp = wg in SPARTANS_COM_TRATAMENTO_ESPECIAL
+    is_hum = st.session_state.usuario.get("humano", False)
+    team = get_team(wg) if is_esp else None
+    ud = load_user_data()
 
     if is_hum: real = PERSONAGENS_HUMANOS[wg]["nome_real"]; badge_color = "#ff6b6b"; badge_label = "Comando"
     elif is_esp: real = SPARTANS_REAIS[wg]["nome_real"]; badge_color = "#ffd700"; badge_label = team or "Operacional"
@@ -439,6 +448,11 @@ REGRAS DE LORE E TRADUÇÃO (MUITO IMPORTANTE):
     if st.session_state.mensagens and st.session_state.mensagens[-1]["role"] == "user":
         ultima_pergunta = st.session_state.mensagens[-1]["content"]
         
+        # --- INICIALIZA A MEMÓRIA NA PRIMEIRA MENSAGEM ---
+        qdrant, emb, status = init_memory()
+        if not qdrant:
+            st.error(f"Erro na memória: {status}")
+        
         # --- BUSCA NA WEB (Se a pergunta parecer sobre Halo) ---
         contexto_web = None
         palavras_halo = ["halo", "spartan", "covenant", "unsc", "flood", "chief", "cortana", "arbiter", "didacta", "forerunner", "guerra", "nave", "planeta"]
@@ -476,5 +490,10 @@ REGRAS DE LORE E TRADUÇÃO (MUITO IMPORTANTE):
             ud[wg]["total_messages"] = ud[wg].get("total_messages", 0) + 2; save_user_data(ud)
         st.rerun()
 
-    if not st.session_state.autenticado: tela_auth()
-    else: tela_chat()
+# ============================================================
+# ROTEAMENTO
+# ============================================================
+if not st.session_state.autenticado: 
+    tela_auth()
+else: 
+    tela_chat()
