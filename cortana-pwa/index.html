@@ -13,33 +13,47 @@
     <style>
         * { box-sizing: border-box; }
         html, body {
-            margin: 0; padding: 0; height: 100%;
+            margin: 0; padding: 0; height: 100%; width: 100%;
             overflow: hidden; background-color: #212121;
             font-family: -apple-system, 'Segoe UI', system-ui, sans-serif;
         }
+        
+        /* A BARRA DO TOPO - Ajustada para o Notch do iPhone */
         #bar {
-            position: fixed; top: 0; left: 0; right: 0; height: 44px;
+            position: fixed; top: 0; left: 0; right: 0;
+            height: calc(50px + env(safe-area-inset-top)); /* Respeita o notch */
+            padding-top: env(safe-area-inset-top);
             background: #171717; color: #ececec;
             display: flex; align-items: center; justify-content: space-between;
-            padding: 0 14px; z-index: 1000;
+            padding-left: 14px; padding-right: 14px;
+            z-index: 99999; /* Fica acima de tudo */
             border-bottom: 1px solid #2f2f2f;
             font-size: 14px;
         }
+        
         #bar .title { color: #00d4ff; font-weight: 600; letter-spacing: 2px; }
+        
         #bar button {
             background: #00d4ff; color: #171717; border: none;
             border-radius: 14px; padding: 6px 12px; font-size: 12px;
             font-weight: 600; cursor: pointer;
         }
         #bar button:disabled { background: #2f2f2f; color: #5a6577; }
+        
+        /* O CHAT - Empurrado para baixo da barra */
         #frame-container {
-            position: fixed; top: 44px; left: 0; right: 0; bottom: 0;
+            position: fixed; 
+            top: calc(50px + env(safe-area-inset-top)); 
+            left: 0; right: 0; 
+            bottom: env(safe-area-inset-bottom);
         }
         iframe { width: 100%; height: 100%; border: none; display: block; }
+        
+        /* PAINEL DE CÓPIA DO JSON */
         #copy-panel {
-            position: fixed; top: 44px; left: 0; right: 0; bottom: 0;
+            position: fixed; top: 0; left: 0; right: 0; bottom: 0;
             background: #171717; color: #ececec; padding: 20px;
-            z-index: 900; overflow: auto; display: none;
+            z-index: 999999; overflow: auto; display: none;
         }
         #copy-panel.show { display: block; }
         #copy-panel h2 { color: #00d4ff; font-size: 16px; margin-top: 0; }
@@ -65,7 +79,7 @@
 </div>
 
 <div id="frame-container">
-    <!-- SUBSTITUA pela URL do seu app Streamlit + ?embed=true -->
+    <!-- Certifique-se que a URL está com ?embed=true -->
     <iframe id="cortana-frame" src="https://projeto-cortana-chat-2wqvs4zfnubjktjzzui4sb.streamlit.app/?embed=true" title="Cortana"></iframe>
 </div>
 
@@ -78,14 +92,9 @@
 </div>
 
 <script>
-// ============================================================
-// COLE AQUI A CHAVE PÚBLICA VAPID NOVA (base64url, começa com "B")
-// ============================================================
-const VAPID_PUBLIC_KEY = "COLE_AQUI_A_CHAVE_PUBLICA_NOVA";
+// COLE SUA CHAVE PÚBLICA VAPID AQUI
+const VAPID_PUBLIC_KEY = "SUA_CHAVE_PUBLICA_VAPID_AQUI";
 
-// ------------------------------------------------------------
-// Utilities
-// ------------------------------------------------------------
 function urlBase64ToUint8Array(base64String) {
     const padding = "=".repeat((4 - base64String.length % 4) % 4);
     const base64 = (base64String + padding).replace(/-/g, "+").replace(/_/g, "/");
@@ -93,18 +102,12 @@ function urlBase64ToUint8Array(base64String) {
     return Uint8Array.from([...rawData].map(c => c.charCodeAt(0)));
 }
 
-// ------------------------------------------------------------
-// Registra o Service Worker
-// ------------------------------------------------------------
 if ("serviceWorker" in navigator) {
     navigator.serviceWorker.register("service-worker.js", { scope: "./" })
         .then(reg => console.log("SW registrado:", reg.scope))
         .catch(err => console.error("Erro SW:", err));
 }
 
-// ------------------------------------------------------------
-// Botão "Ativar Notificações"
-// ------------------------------------------------------------
 const btn = document.getElementById("btn-notif");
 
 async function ativarNotificacoes() {
@@ -114,7 +117,7 @@ async function ativarNotificacoes() {
     }
     const permission = await Notification.requestPermission();
     if (permission !== "granted") {
-        alert("Permissão de notificação negada. Ative nos Ajustes do iPhone > Cortana > Notificações.");
+        alert("Permissão negada. Ative nos Ajustes do iPhone > Cortana > Notificações.");
         return;
     }
 
@@ -130,7 +133,6 @@ async function ativarNotificacoes() {
 
     document.getElementById("sub-json").value = JSON.stringify(sub, null, 2);
     document.getElementById("copy-panel").classList.add("show");
-
     localStorage.setItem("cortana_subscription", JSON.stringify(sub));
 
     btn.textContent = "Notificações Ativas";
@@ -149,9 +151,6 @@ navigator.serviceWorker.ready.then(async reg => {
     }
 });
 
-// ------------------------------------------------------------
-// Botões do painel de cópia
-// ------------------------------------------------------------
 document.getElementById("btn-copy").addEventListener("click", async () => {
     const text = document.getElementById("sub-json").value;
     try {
@@ -168,6 +167,5 @@ document.getElementById("btn-close").addEventListener("click", () => {
     document.getElementById("copy-panel").classList.remove("show");
 });
 </script>
-
 </body>
 </html>
