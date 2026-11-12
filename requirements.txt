@@ -6,3 +6,4 @@ py-vapid>=1.9.0
 qdrant-client>=1.9.0
 sentence-transformers>=2.7.0
 toml
+duckduckgo-search
