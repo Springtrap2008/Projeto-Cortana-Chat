@@ -24,10 +24,13 @@ st.set_page_config(page_title="Cortana", page_icon="🔵", layout="wide")
 st.markdown("""
 <style>
     .stApp { background: #212121; color: #ececec; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; }
+    
+    /* Esconde a barra do topo e o rodapé do Streamlit */
     #MainMenu, header, footer { visibility: hidden !important; display: none !important; }
     [data-testid="stToolbar"] { display: none !important; }
     [data-testid="stStatusWidget"] { display: none !important; }
     [data-testid="stDecoration"] { display: none !important; }
+    
     .main .block-container { max-width: 800px; padding: 1rem 1.5rem 8rem 1.5rem; }
     [data-testid="stSidebar"] { background: #171717; border-right: 1px solid #2f2f2f; }
     [data-testid="stSidebar"] > div:first-child { padding: 0.5rem 0.5rem 1rem 0.5rem; }
