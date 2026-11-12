@@ -134,13 +134,20 @@ if ("serviceWorker" in navigator) {
 }
 
 async function ativarNotificacoes() {
+    alert("1. Botão clicado! Verificando suporte...");
+
     if (!("serviceWorker" in navigator) || !("PushManager" in window)) {
-        alert("Push não suportado. Use iOS 16.4+ e adicione à Tela de Início.");
+        alert("ERRO: Este navegador não suporta Push. Você instalou na Tela de Início?");
         return;
     }
+
+    alert("2. Suporte OK. Solicitando permissão ao iOS...");
     const permission = await Notification.requestPermission();
+    
+    alert("3. Resposta do iOS: " + permission);
+
     if (permission !== "granted") {
-        alert("Permissão negada. Ative nos Ajustes do iPhone > Cortana > Notificações.");
+        alert("Permissão negada. Vá em Ajustes do iPhone > Cortana > Notificações e permita.");
         return;
     }
 
@@ -148,12 +155,14 @@ async function ativarNotificacoes() {
     let sub = await reg.pushManager.getSubscription();
 
     if (!sub) {
+        alert("4. Gerando nova inscrição (isso pode demorar um pouco)...");
         sub = await reg.pushManager.subscribe({
             userVisibleOnly: true,
             applicationServerKey: urlBase64ToUint8Array(VAPID_PUBLIC_KEY)
         });
     }
 
+    alert("5. Inscrição gerada com sucesso! O JSON vai aparecer.");
     document.getElementById("sub-json").value = JSON.stringify(sub, null, 2);
     document.getElementById("copy-panel").classList.add("show");
     localStorage.setItem("cortana_subscription", JSON.stringify(sub));
