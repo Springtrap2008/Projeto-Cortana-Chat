@@ -12,52 +12,67 @@
     <meta name="theme-color" content="#00d4ff" />
     <style>
         * { box-sizing: border-box; }
-        html, body { margin: 0; padding: 0; height: 100%; width: 100%; overflow: hidden; background-color: #212121; font-family: -apple-system, sans-serif; }
-        
-        #debug-panel {
-            position: fixed; top: 0; left: 0; right: 0;
-            background: rgba(255, 0, 0, 0.9); color: white;
-            z-index: 999999999; font-size: 12px; padding: 10px;
-            text-align: center; font-weight: bold;
+        html, body {
+            margin: 0; padding: 0; height: 100%; width: 100%;
+            overflow: hidden; background-color: #212121;
+            font-family: -apple-system, 'Segoe UI', system-ui, sans-serif;
         }
-
-        #frame-container { position: fixed; top: 40px; left: -5px; right: -5px; bottom: -80px; overflow: hidden; z-index: 1; }
+        
+        /* O CHAT ocupa a tela inteira e corta o rodapé branco */
+        #frame-container {
+            position: fixed; top: -5px; left: -5px; right: -5px; bottom: -80px;
+            overflow: hidden; z-index: 1;
+        }
         iframe { width: 100%; height: 100%; border: none; display: block; }
         
+        /* BOTÃO FLUTUANTE (Começa escondido) */
         #btn-notif {
             position: fixed; bottom: calc(30px + env(safe-area-inset-bottom)); right: 20px;
             background: #00d4ff; color: #171717; border: none; border-radius: 25px;
             padding: 12px 20px; font-size: 14px; font-weight: 700; cursor: pointer;
             z-index: 9999999; box-shadow: 0 4px 12px rgba(0, 212, 255, 0.4);
-            display: flex; align-items: center; gap: 8px;
+            display: none; /* Começa escondido */
+            align-items: center; gap: 8px;
         }
         
-        #copy-panel { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: #171717; padding: 20px; z-index: 99999999; display: none; }
-        #copy-panel textarea { width: 100%; height: 200px; background: #2f2f2f; color: white; border: 1px solid #444; padding: 10px; }
-        #copy-panel button { padding: 10px; margin-top: 10px; width: 100%; background: #00d4ff; border: none; font-weight: bold; }
+        /* PAINEL DE CÓPIA DO JSON */
+        #copy-panel {
+            position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(23, 23, 23, 0.95); color: #ececec; padding: 20px;
+            z-index: 99999999; overflow: auto; display: none;
+            backdrop-filter: blur(4px);
+        }
+        #copy-panel h2 { color: #00d4ff; font-size: 18px; margin-top: 10px; }
+        #copy-panel p { font-size: 14px; color: #b4b4b4; line-height: 1.5; }
+        #copy-panel textarea {
+            width: 100%; height: 250px; background: #2f2f2f; color: #ececec;
+            border: 1px solid #3f3f3f; border-radius: 8px; padding: 10px;
+            font-family: 'Consolas', monospace; font-size: 11px; resize: vertical;
+        }
+        #copy-panel button {
+            background: #00d4ff; color: #171717; border: none; border-radius: 8px;
+            padding: 12px 16px; font-weight: 600; margin-top: 10px; cursor: pointer; width: 100%;
+        }
+        #btn-close { background: #2f2f2f !important; color: #ececec !important; }
     </style>
 </head>
 <body>
 
-<!-- PAINEL DE DEBUG (Vermelho no topo) -->
-<div id="debug-panel">Status: Procurando Service Worker...</div>
-
 <div id="frame-container">
-    <!-- URL do Streamlit -->
     <iframe id="cortana-frame" src="https://projeto-cortana-chat-2wqvs4zfnubjktjzzui4sb.streamlit.app/?embed=true&embed_options=hide_toolbar" title="Cortana"></iframe>
 </div>
 
 <button id="btn-notif">🔔 Ativar Notificações</button>
 
 <div id="copy-panel">
-    <h3 style="color:white">Copie o JSON:</h3>
+    <h2>Inscrição Push</h2>
+    <p>Copie o texto abaixo, salve no arquivo <code>subscription.json</code> na pasta do seu app Streamlit.</p>
     <textarea id="sub-json" readonly></textarea>
-    <button onclick="document.getElementById('copy-panel').style.display='none'">Fechar</button>
+    <button id="btn-copy">Copiar JSON</button>
+    <button id="btn-close">Fechar</button>
 </div>
 
 <script>
-const debug = document.getElementById("debug-panel");
-const btn = document.getElementById("btn-notif");
 const VAPID_PUBLIC_KEY = "BGRvvM338m4KnKvads_rS3Nz5uoffP0VwHnKAgWMrZIb4Lg89kPFg_MtGBJCrTdkt1W4YuVou9wZYEogRbV2w-M";
 
 function urlBase64ToUint8Array(base64String) {
@@ -67,44 +82,58 @@ function urlBase64ToUint8Array(base64String) {
     return Uint8Array.from([...rawData].map(c => c.charCodeAt(0)));
 }
 
-// Registra o SW
 if ("serviceWorker" in navigator) {
-    navigator.serviceWorker.register("service-worker.js")
-        .then(reg => { debug.innerText = "Status: SW Registrado. Pronto para clicar."; })
-        .catch(err => { debug.innerText = "Erro SW: " + err; });
-} else {
-    debug.innerText = "ERRO: Navegador não suporta SW.";
+    navigator.serviceWorker.register("service-worker.js", { scope: "./" }).catch(err => console.error(err));
 }
 
-// Clique do Botão
-btn.addEventListener("click", async () => {
-    debug.innerText = "Status: Solicitando permissão...";
+const btn = document.getElementById("btn-notif");
+
+async function ativarNotificacoes() {
     try {
         const permission = await Notification.requestPermission();
-        debug.innerText = "Permissão: " + permission;
-        
-        if (permission !== "granted") {
-            return; // Para se negar
-        }
+        if (permission !== "granted") return;
 
         const reg = await navigator.serviceWorker.ready;
         let sub = await reg.pushManager.getSubscription();
-
         if (!sub) {
-            debug.innerText = "Status: Gerando Push (Aguarde)...";
             sub = await reg.pushManager.subscribe({
                 userVisibleOnly: true,
                 applicationServerKey: urlBase64ToUint8Array(VAPID_PUBLIC_KEY)
             });
         }
-
-        debug.innerText = "Status: SUCESSO! Copie o JSON.";
         document.getElementById("sub-json").value = JSON.stringify(sub, null, 2);
         document.getElementById("copy-panel").style.display = "block";
-        
+        localStorage.setItem("cortana_subscription", JSON.stringify(sub));
+        btn.style.display = "none"; // Esconde após o sucesso
     } catch (error) {
-        debug.innerText = "ERRO GRAVE: " + error.message;
+        alert("Erro: " + error.message);
     }
+}
+
+btn.addEventListener("click", ativarNotificacoes);
+
+// Lógica para mostrar o botão apenas se não tiver inscrição ou se for forçado via URL
+navigator.serviceWorker.ready.then(async reg => {
+    const sub = await reg.pushManager.getSubscription();
+    if (!sub || window.location.search.includes("reset=true")) {
+        btn.style.display = "flex"; // Mostra o botão
+    }
+});
+
+document.getElementById("btn-copy").addEventListener("click", async () => {
+    const text = document.getElementById("sub-json").value;
+    try {
+        await navigator.clipboard.writeText(text);
+        alert("JSON copiado com sucesso!");
+    } catch (e) {
+        document.getElementById("sub-json").select();
+        document.execCommand("copy");
+        alert("JSON copiado com sucesso!");
+    }
+});
+
+document.getElementById("btn-close").addEventListener("click", () => {
+    document.getElementById("copy-panel").style.display = "none";
 });
 </script>
 </body>
