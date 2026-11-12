@@ -12,94 +12,35 @@
     <meta name="theme-color" content="#00d4ff" />
     <style>
         * { box-sizing: border-box; }
-        html, body {
-            margin: 0; padding: 0; height: 100%; width: 100%;
-            overflow: hidden; background-color: #212121;
-            font-family: -apple-system, 'Segoe UI', system-ui, sans-serif;
-        }
+        html, body { margin: 0; padding: 0; height: 100%; width: 100%; overflow: hidden; background-color: #212121; font-family: -apple-system, sans-serif; }
         
-        /* O CHAT ocupa a tela inteira, mas estica e puxa para fora para esconder as listras */
-        #frame-container {
-            position: fixed; 
-            top: -5px; left: -5px; right: -5px; bottom: -80px; /* Puxa as bordas para fora da tela */
-            overflow: hidden;
-            z-index: 1;
+        #debug-panel {
+            position: fixed; top: 0; left: 0; right: 0;
+            background: rgba(255, 0, 0, 0.9); color: white;
+            z-index: 999999999; font-size: 12px; padding: 10px;
+            text-align: center; font-weight: bold;
         }
+
+        #frame-container { position: fixed; top: 40px; left: -5px; right: -5px; bottom: -80px; overflow: hidden; z-index: 1; }
+        iframe { width: 100%; height: 100%; border: none; display: block; }
         
-        iframe { 
-            width: 100%; 
-            height: 100%; 
-            border: none; 
-            display: block; 
-        }
-        
-        /* BOTÃO FLUTUANTE BLINDADO (Sempre visível) */
         #btn-notif {
-            position: fixed;
-            bottom: calc(30px + env(safe-area-inset-bottom));
-            right: 20px;
-            background: #00d4ff;
-            color: #171717;
-            border: none;
-            border-radius: 25px;
-            padding: 12px 20px;
-            font-size: 14px;
-            font-weight: 700;
-            cursor: pointer;
-            z-index: 9999999; /* O maior z-index possível */
-            box-shadow: 0 4px 12px rgba(0, 212, 255, 0.4);
-            display: flex;
-            align-items: center;
-            gap: 8px;
-        }        #btn-notif {
-            position: fixed;
-            bottom: calc(30px + env(safe-area-inset-bottom));
-            right: 20px;
-            background: #00d4ff;
-            color: #171717;
-            border: none;
-            border-radius: 25px;
-            padding: 12px 20px;
-            font-size: 14px;
-            font-weight: 700;
-            cursor: pointer;
-            z-index: 9999999;
-            box-shadow: 0 4px 12px rgba(0, 212, 255, 0.4);
-            display: flex !important;
-            align-items: center;
-            gap: 8px;
-        }
-        #btn-notif:disabled {
-            background: #2f2f2f;
-            color: #5a6577;
-            box-shadow: none;
+            position: fixed; bottom: calc(30px + env(safe-area-inset-bottom)); right: 20px;
+            background: #00d4ff; color: #171717; border: none; border-radius: 25px;
+            padding: 12px 20px; font-size: 14px; font-weight: 700; cursor: pointer;
+            z-index: 9999999; box-shadow: 0 4px 12px rgba(0, 212, 255, 0.4);
+            display: flex; align-items: center; gap: 8px;
         }
         
-        /* PAINEL DE CÓPIA DO JSON */
-        #copy-panel {
-            position: fixed; top: 0; left: 0; right: 0; bottom: 0;
-            background: rgba(23, 23, 23, 0.95); color: #ececec; padding: 20px;
-            z-index: 99999999; overflow: auto; display: none;
-            backdrop-filter: blur(4px);
-        }
-        #copy-panel.show { display: block; }
-        #copy-panel h2 { color: #00d4ff; font-size: 18px; margin-top: 10px; }
-        #copy-panel p { font-size: 14px; color: #b4b4b4; line-height: 1.5; }
-        #copy-panel textarea {
-            width: 100%; height: 250px; background: #2f2f2f; color: #ececec;
-            border: 1px solid #3f3f3f; border-radius: 8px; padding: 10px;
-            font-family: 'Consolas', monospace; font-size: 11px;
-            resize: vertical;
-        }
-        #copy-panel button {
-            background: #00d4ff; color: #171717; border: none;
-            border-radius: 8px; padding: 12px 16px; font-weight: 600;
-            margin-top: 10px; cursor: pointer; width: 100%;
-        }
-        #btn-close { background: #2f2f2f !important; color: #ececec !important; }
+        #copy-panel { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: #171717; padding: 20px; z-index: 99999999; display: none; }
+        #copy-panel textarea { width: 100%; height: 200px; background: #2f2f2f; color: white; border: 1px solid #444; padding: 10px; }
+        #copy-panel button { padding: 10px; margin-top: 10px; width: 100%; background: #00d4ff; border: none; font-weight: bold; }
     </style>
 </head>
 <body>
+
+<!-- PAINEL DE DEBUG (Vermelho no topo) -->
+<div id="debug-panel">Status: Procurando Service Worker...</div>
 
 <div id="frame-container">
     <!-- URL do Streamlit -->
@@ -109,16 +50,15 @@
 <button id="btn-notif">🔔 Ativar Notificações</button>
 
 <div id="copy-panel">
-    <h2>Inscrição Push</h2>
-    <p>Copie o texto abaixo, salve no arquivo <code>subscription.json</code> na pasta do seu app Streamlit e rode o script <code>enviar_push.py</code>.</p>
+    <h3 style="color:white">Copie o JSON:</h3>
     <textarea id="sub-json" readonly></textarea>
-    <button id="btn-copy">Copiar JSON</button>
-    <button id="btn-close">Fechar</button>
+    <button onclick="document.getElementById('copy-panel').style.display='none'">Fechar</button>
 </div>
 
 <script>
-// COLE SUA CHAVE PÚBLICA VAPID AQUI (mantenha as aspas)
-const VAPID_PUBLIC_KEY = "SUA_CHAVE_PUBLICA_VAPID_AQUI";
+const debug = document.getElementById("debug-panel");
+const btn = document.getElementById("btn-notif");
+const VAPID_PUBLIC_KEY = "BGRvvM338m4KnKvads_rS3Nz5uoffP0VwHnKAgWMrZIb4Lg89kPFg_MtGBJCrTdkt1W4YuVou9wZYEogRbV2w-M";
 
 function urlBase64ToUint8Array(base64String) {
     const padding = "=".repeat((4 - base64String.length % 4) % 4);
@@ -127,88 +67,45 @@ function urlBase64ToUint8Array(base64String) {
     return Uint8Array.from([...rawData].map(c => c.charCodeAt(0)));
 }
 
+// Registra o SW
 if ("serviceWorker" in navigator) {
-    navigator.serviceWorker.register("service-worker.js", { scope: "./" })
-        .then(reg => console.log("SW registrado:", reg.scope))
-        .catch(err => console.error("Erro SW:", err));
+    navigator.serviceWorker.register("service-worker.js")
+        .then(reg => { debug.innerText = "Status: SW Registrado. Pronto para clicar."; })
+        .catch(err => { debug.innerText = "Erro SW: " + err; });
+} else {
+    debug.innerText = "ERRO: Navegador não suporta SW.";
 }
 
-async function ativarNotificacoes() {
-    alert("1. Botão clicado! Verificando suporte...");
-
-    if (!("serviceWorker" in navigator) || !("PushManager" in window)) {
-        alert("ERRO: Este navegador não suporta Push. Você instalou na Tela de Início?");
-        return;
-    }
-
-    alert("2. Suporte OK. Solicitando permissão ao iOS...");
-    const permission = await Notification.requestPermission();
-    
-    alert("3. Resposta do iOS: " + permission);
-
-    if (permission !== "granted") {
-        alert("Permissão negada. Vá em Ajustes do iPhone > Cortana > Notificações e permita.");
-        return;
-    }
-
-    const reg = await navigator.serviceWorker.ready;
-    let sub = await reg.pushManager.getSubscription();
-
-    if (!sub) {
-        alert("4. Gerando nova inscrição (isso pode demorar um pouco)...");
-        sub = await reg.pushManager.subscribe({
-            userVisibleOnly: true,
-            applicationServerKey: urlBase64ToUint8Array(VAPID_PUBLIC_KEY)
-        });
-    }
-
-    alert("5. Inscrição gerada com sucesso! O JSON vai aparecer.");
-    document.getElementById("sub-json").value = JSON.stringify(sub, null, 2);
-    document.getElementById("copy-panel").classList.add("show");
-    localStorage.setItem("cortana_subscription", JSON.stringify(sub));
-
-    btn.textContent = "✅ Notificações Ativas";
-    btn.disabled = true;
-}
-
-btn.addEventListener("click", ativarNotificacoes);
-
-const btn = document.getElementById("btn-notif");
-
-// Lógica para mostrar o botão
-navigator.serviceWorker.ready.then(async reg => {
-    const sub = await reg.pushManager.getSubscription();
-    
-    // Se a URL tiver ?reset=true, MOSTRA o botão (para você pegar um JSON novo)
-    if (window.location.search.includes("reset=true")) {
-        btn.style.display = "flex";
-    } 
-    // Se já tem inscrição e NÃO pediu reset, MANTÉM escondido
-    else if (sub) {
-        btn.style.display = "none";
-    } 
-    // Se não tem inscrição de jeito nenhum, MOSTRA o botão
-    else {
-        btn.style.display = "flex";
-    }
-});
-
-document.getElementById("btn-copy").addEventListener("click", async () => {
-    const text = document.getElementById("sub-json").value;
+// Clique do Botão
+btn.addEventListener("click", async () => {
+    debug.innerText = "Status: Solicitando permissão...";
     try {
-        await navigator.clipboard.writeText(text);
-        alert("JSON copiado com sucesso!");
-    } catch (e) {
-        document.getElementById("sub-json").select();
-        document.execCommand("copy");
-        alert("JSON copiado com sucesso!");
-    }
-});
+        const permission = await Notification.requestPermission();
+        debug.innerText = "Permissão: " + permission;
+        
+        if (permission !== "granted") {
+            return; // Para se negar
+        }
 
-document.getElementById("btn-close").addEventListener("click", () => {
-    document.getElementById("copy-panel").classList.remove("show");
+        const reg = await navigator.serviceWorker.ready;
+        let sub = await reg.pushManager.getSubscription();
+
+        if (!sub) {
+            debug.innerText = "Status: Gerando Push (Aguarde)...";
+            sub = await reg.pushManager.subscribe({
+                userVisibleOnly: true,
+                applicationServerKey: urlBase64ToUint8Array(VAPID_PUBLIC_KEY)
+            });
+        }
+
+        debug.innerText = "Status: SUCESSO! Copie o JSON.";
+        document.getElementById("sub-json").value = JSON.stringify(sub, null, 2);
+        document.getElementById("copy-panel").style.display = "block";
+        
+    } catch (error) {
+        debug.innerText = "ERRO GRAVE: " + error.message;
+    }
 });
 </script>
-
 </body>
 </html>
