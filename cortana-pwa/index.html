@@ -51,6 +51,23 @@
             display: flex;
             align-items: center;
             gap: 8px;
+        }        #btn-notif {
+            position: fixed;
+            bottom: calc(30px + env(safe-area-inset-bottom));
+            right: 20px;
+            background: #00d4ff;
+            color: #171717;
+            border: none;
+            border-radius: 25px;
+            padding: 12px 20px;
+            font-size: 14px;
+            font-weight: 700;
+            cursor: pointer;
+            z-index: 9999999;
+            box-shadow: 0 4px 12px rgba(0, 212, 255, 0.4);
+            display: none !important; /* <-- MUDANÇA AQUI */
+            align-items: center;
+            gap: 8px;
         }
         #btn-notif:disabled {
             background: #2f2f2f;
