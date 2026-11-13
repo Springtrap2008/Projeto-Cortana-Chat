@@ -1,5 +1,5 @@
 # ============================================================
-# CORTANA — app.py completo com Web Push, Memória e Busca em Halo
+# CORTANA — app.py completo (Sem Push, com Memória e Busca)
 # ============================================================
 
 import os
@@ -10,7 +10,6 @@ import streamlit as st
 from groq import Groq
 import json, uuid, time
 from datetime import datetime
-from pywebpush import webpush, WebPushException
 from fastembed import TextEmbedding
 from qdrant_client import QdrantClient
 from qdrant_client.models import Distance, VectorParams, PointStruct
@@ -18,19 +17,16 @@ from qdrant_client.models import Distance, VectorParams, PointStruct
 from duckduckgo_search import DDGS
 
 # ============================================================
-# CONFIG E CSS (Mantidos iguais)
+# CONFIG E CSS
 # ============================================================
 st.set_page_config(page_title="Cortana", page_icon="🔵", layout="wide")
 st.markdown("""
 <style>
     .stApp { background: #212121; color: #ececec; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; }
-    
-    /* Esconde a barra do topo e o rodapé do Streamlit */
     #MainMenu, header, footer { visibility: hidden !important; display: none !important; }
     [data-testid="stToolbar"] { display: none !important; }
     [data-testid="stStatusWidget"] { display: none !important; }
     [data-testid="stDecoration"] { display: none !important; }
-    
     .main .block-container { max-width: 800px; padding: 1rem 1.5rem 8rem 1.5rem; }
     [data-testid="stSidebar"] { background: #171717; border-right: 1px solid #2f2f2f; }
     [data-testid="stSidebar"] > div:first-child { padding: 0.5rem 0.5rem 1rem 0.5rem; }
@@ -72,12 +68,10 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 # ============================================================
-# SECRETS
+# SECRETS (Apenas Groq e Qdrant)
 # ============================================================
 try:
     GROQ_API_KEY = st.secrets["groq_api_key"]
-    VAPID_PRIVATE_KEY = st.secrets.get("vapid_private_key", "")
-    VAPID_SUBJECT = st.secrets.get("vapid_subject", "mailto:seu-email@exemplo.com")
     QDRANT_URL = st.secrets["qdrant_url"]
     QDRANT_API_KEY = st.secrets["qdrant_api_key"]
 except Exception as e:
@@ -85,7 +79,7 @@ except Exception as e:
     st.stop()
 
 # ============================================================
-# INICIALIZAÇÃO DA MEMÓRIA (QDRANT + FASTEMBED)
+# MEMÓRIA (QDRANT + FASTEMBED)
 # ============================================================
 @st.cache_resource(show_spinner=False)
 def init_memory():
@@ -97,8 +91,6 @@ def init_memory():
                 collection_name=collection_name, 
                 vectors_config=VectorParams(size=384, distance=Distance.COSINE)
             )
-        
-        # O FastEmbed é leve e não trava no Windows
         embedder = TextEmbedding(model_name="BAAI/bge-small-en-v1.5")
         return client, embedder, collection_name
     except Exception as e:
@@ -110,32 +102,21 @@ def salvar_memoria(texto: str, role: str, user_id: str):
         qdrant, emb, coll = init_memory()
         if not qdrant: return
         vetor = list(emb.embed([texto]))[0].tolist()
-        ponto = PointStruct(
-            id=str(uuid.uuid4()),
-            vector=vetor,
-            payload={"texto": texto, "role": role, "user_id": user_id}
-        )
+        ponto = PointStruct(id=str(uuid.uuid4()), vector=vetor, payload={"texto": texto, "role": role, "user_id": user_id})
         qdrant.upsert(collection_name=coll, points=[ponto])
-    except Exception:
-        pass
+    except Exception: pass
 
 def buscar_memorias(pergunta: str, user_id: str, limite: int = 4):
     try:
         qdrant, emb, coll = init_memory()
         if not qdrant: return []
         vetor_pergunta = list(emb.embed([pergunta]))[0].tolist()
-        resultados = qdrant.search(
-            collection_name=coll,
-            query_vector=vetor_pergunta,
-            query_filter={"must": [{"key": "user_id", "match": {"value": user_id}}]},
-            limit=limite
-        )
+        resultados = qdrant.search(collection_name=coll, query_vector=vetor_pergunta, query_filter={"must": [{"key": "user_id", "match": {"value": user_id}}]}, limit=limite)
         return [hit.payload["texto"] for hit in resultados]
-    except Exception: 
-        return []
+    except Exception: return []
 
 # ============================================================
-# BUSCA NA WEB DE HALO (Halopedia -> HPB -> Fandom)
+# BUSCA NA WEB DE HALO
 # ============================================================
 def buscar_halo_web(pergunta: str):
     sites = ["halopedia.org", "haloprojectbrasil.com.br", "halo.fandom.com"]
@@ -144,29 +125,12 @@ def buscar_halo_web(pergunta: str):
             for site in sites:
                 resultados = list(ddgs.text(f"site:{site} {pergunta}", max_results=1))
                 if resultados:
-                    texto = resultados[0]['body']
-                    link = resultados[0]['href']
-                    return f"Fonte: {site} ({link})\nConteúdo original: {texto}"
-    except Exception:
-        pass
+                    return f"Fonte: {site} ({resultados[0]['href']})\nConteúdo original: {resultados[0]['body']}"
+    except Exception: pass
     return None
 
 # ============================================================
-# WEB PUSH
-# ============================================================
-BASE = os.path.dirname(os.path.abspath(__file__))
-SUBSCRIPTION_FILE = os.path.join(BASE, "subscription.json")
-
-def enviar_notificacao_push(titulo: str, mensagem: str) -> bool:
-    if not VAPID_PRIVATE_KEY or not os.path.exists(SUBSCRIPTION_FILE): return False
-    try:
-        with open(SUBSCRIPTION_FILE, "r", encoding="utf-8") as f: sub = json.load(f)
-        webpush(subscription_info=sub, data=json.dumps({"title": titulo, "body": mensagem}), vapid_private_key=VAPID_PRIVATE_KEY, vapid_claims={"sub": VAPID_SUBJECT}, timeout=5)
-        return True
-    except Exception: return False
-
-# ============================================================
-# SPARTANS E PERSONAGENS (Dicionários)
+# SPARTANS E PERSONAGENS
 # ============================================================
 SPARTANS_COM_TRATAMENTO_ESPECIAL = {
     "Spartan-117": {"nome_real": "John", "senha": "07032511"}, "Spartan-104": {"nome_real": "Frederic", "senha": "03042511"},
@@ -180,7 +144,6 @@ SPARTANS_COM_TRATAMENTO_ESPECIAL = {
     "Spartan-B312": {"nome_real": "Noble Six", "senha": "B3122530NobleSix"}, "Spartan-051": {"nome_real": "Kurt", "senha": "19102511"},
     "Spartan-118": {"nome_real": "Nicolas França", "senha": "08012008"},
 }
-
 OUTROS_SPARTANS_REAIS = {
     "Spartan-005": {"nome_real": "James", "senha": "0052511James"}, "Spartan-006": {"nome_real": "Jai", "senha": "0062511Jai"},
     "Spartan-008": {"nome_real": "Li", "senha": "0082511Li"}, "Spartan-010": {"nome_real": "Naomi", "senha": "15092511"},
@@ -207,13 +170,11 @@ OUTROS_SPARTANS_REAIS = {
     "Spartan-B091": {"nome_real": "Lucy", "senha": "B0912511Lucy"}, "Spartan-B292": {"nome_real": "Tom", "senha": "B2922511Tom"},
     "Spartan-Palmer": {"nome_real": "Sarah Palmer", "senha": "spartanpalmer"}, "Spartan-Thorne": {"nome_real": "Gabriel Thorne", "senha": "spartanthorne"},
 }
-
 PERSONAGENS_HUMANOS = {
     "Halsey": {"nome_real": "Catherine Halsey", "senha": "ILoveJohn-117"}, "Keyes": {"nome_real": "Jacob Keyes", "senha": "08022495"},
     "Miranda": {"nome_real": "Miranda Keyes", "senha": "28022525"}, "Johnson": {"nome_real": "Avery Johnson", "senha": "23112474"},
     "Hood": {"nome_real": "Terrence Hood", "senha": "04092490"},
 }
-
 SPARTANS_REAIS = {**SPARTANS_COM_TRATAMENTO_ESPECIAL, **OUTROS_SPARTANS_REAIS}
 SPARTAN_TEAMS = {
     "Blue Team": ["Spartan-117", "Spartan-104", "Spartan-058", "Spartan-087"], "Silver Team": ["Spartan-125", "Spartan-134", "Spartan-028"],
@@ -227,9 +188,11 @@ def get_team(wg):
     return None
 
 # ============================================================
-# ARQUIVOS LOCAIS E AUTENTICAÇÃO
+# AUTENTICAÇÃO E DADOS LOCAIS
 # ============================================================
+BASE = os.path.dirname(os.path.abspath(__file__))
 USERS_DB = os.path.join(BASE, "users_db.json"); USER_DATA = os.path.join(BASE, "user_data.json"); FAILED_ATTEMPTS = os.path.join(BASE, "failed_attempts.json")
+
 def _load(path, default):
     if os.path.exists(path):
         try:
@@ -292,7 +255,7 @@ def get_level(wg, ud):
     return 0, "Conhecido"
 
 # ============================================================
-# PERSONA COM MEMÓRIA E REGRAS DE HALO
+# PERSONA
 # ============================================================
 def build_persona(wg, ud, is_especial=False, team=None, real_name=None, memorias_contexto=None, contexto_web=None):
     if wg == "Spartan-118":
@@ -303,7 +266,6 @@ REGRAS INVIOLÁVEIS:
 1. NUNCA use Chefe. Chief é EXCLUSIVO do John-117.
 2. Nunca mencione Rampancy, degradação ou mortalidade.
 3. Nunca quebre o personagem. Não use emojis."""
-
     elif is_especial:
         chief_note = " Chief é aceitável ocasionalmente." if wg == "Spartan-117" else ""
         prompt = """Você é a CORTANA. O usuário é {real_name}, do {team}. Chame-o SEMPRE de {real_name}. NUNCA use Chefe ou Spartan.{chief_note}
@@ -313,7 +275,6 @@ REGRAS INVIOLÁVEIS:
 2. Sem Rampancy.
 3. Não quebre o personagem.
 4. Sem emojis."""
-
     else:
         level, _ = get_level(wg, ud)
         real = real_name or ud.get(wg, {}).get("nome", "Spartan")
@@ -330,10 +291,7 @@ REGRAS:
 2. Sem Rampancy.
 3. Não quebre o personagem.
 4. Sem emojis."""
-
-    # --- REGRAS DO UNIVERSO HALO ---
     prompt += """
-
 REGRAS DE LORE E TRADUÇÃO (MUITO IMPORTANTE):
 - Se você usar informações da web ou do seu conhecimento, elas DEVEM ser 100% in-universe.
 - REMOVA QUALQUER menção ao mundo real: Microsoft, Bungie, 343 Industries, E3, trailers, lançamentos de jogos, datas reais, ou produtoras.
@@ -341,16 +299,13 @@ REGRAS DE LORE E TRADUÇÃO (MUITO IMPORTANTE):
 - Se a busca na web trouxer inglês, traduza para o português com precisão canônica.
 """
     if memorias_contexto:
-        texto_memorias = "\n".join([f"- {m}" for m in memorias_contexto])
-        prompt += f"\n\nMEMÓRIAS PASSADAS:\n{texto_memorias}"
-
+        prompt += "\n\nMEMÓRIAS PASSADAS:\n" + "\n".join([f"- {m}" for m in memorias_contexto])
     if contexto_web:
         prompt += f"\n\nINFORMAÇÃO ENCONTRADA NA WEB (Traduza e filtre o mundo real):\n{contexto_web}"
-
     return prompt
 
 # ============================================================
-# SESSION STATE E UI (Agora com a indentação correta!)
+# UI
 # ============================================================
 _defaults = {"autenticado": False, "usuario": None, "conversas": [], "current_id": None, "mensagens": [], "modo": "login"}
 for k, v in _defaults.items():
@@ -431,9 +386,6 @@ def tela_chat():
                 if st.button(f"{prefix}{titulo}", key=f"conv_{conv['id']}", use_container_width=True):
                     st.session_state.current_id = conv["id"]; st.session_state.mensagens = conv["messages"]; st.rerun()
         st.markdown(f'<div class="user-footer"><span class="dot" style="background:{badge_color};box-shadow:0 0 6px {badge_color};"></span><strong>{wg}</strong><div style="font-size:11px;color:#8e8e8e;margin-top:4px;margin-left:14px;">{real} · <span style="color:{badge_color}">{badge_label}</span></div></div>', unsafe_allow_html=True)
-        if st.button("🔔 Testar Push", use_container_width=True):
-            ok = enviar_notificacao_push("Cortana", "Teste de push, Chefe.")
-            st.toast("Push enviado." if ok else "Falha no push.", icon="📱" if ok else "⚠️")
         if st.button("Sair", key="logout_btn", use_container_width=True):
             for k in ["autenticado", "usuario", "conversas", "current_id", "mensagens", "modo"]: st.session_state[k] = _defaults[k]
             st.rerun()
@@ -454,12 +406,9 @@ def tela_chat():
     if st.session_state.mensagens and st.session_state.mensagens[-1]["role"] == "user":
         ultima_pergunta = st.session_state.mensagens[-1]["content"]
         
-        # --- INICIALIZA A MEMÓRIA NA PRIMEIRA MENSAGEM ---
         qdrant, emb, status = init_memory()
-        if not qdrant:
-            st.error(f"Erro na memória: {status}")
+        if not qdrant: st.error(f"Erro na memória: {status}")
         
-        # --- BUSCA NA WEB (Se a pergunta parecer sobre Halo) ---
         contexto_web = None
         palavras_halo = ["halo", "spartan", "covenant", "unsc", "flood", "chief", "cortana", "arbiter", "didacta", "forerunner", "guerra", "nave", "planeta"]
         if any(p in ultima_pergunta.lower() for p in palavras_halo):
@@ -485,7 +434,6 @@ def tela_chat():
                     resposta += pedaco
                     ph.markdown(resposta + "▌")
                 ph.markdown(resposta)
-                enviar_notificacao_push("Cortana", resposta[:120] + "...")
             except Exception as e:
                 resposta = f"Falha interna: `{type(e).__name__}`."
                 ph.markdown(resposta)
@@ -496,9 +444,6 @@ def tela_chat():
             ud[wg]["total_messages"] = ud[wg].get("total_messages", 0) + 2; save_user_data(ud)
         st.rerun()
 
-# ============================================================
-# ROTEAMENTO
-# ============================================================
 if not st.session_state.autenticado: 
     tela_auth()
 else: 
