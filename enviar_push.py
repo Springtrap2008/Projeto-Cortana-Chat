@@ -6,7 +6,6 @@ BASE = os.path.dirname(os.path.abspath(__file__))
 SUBSCRIPTION_FILE = os.path.join(BASE, "subscription.json")
 VAPID_PRIVATE_KEY_FILE = os.path.join(BASE, "private_key.pem")
 
-# Você pode colocar o seu e-mail aqui
 VAPID_SUBJECT = "mailto:seu-email@exemplo.com"
 
 def enviar_notificacao(titulo, mensagem):
@@ -22,22 +21,27 @@ def enviar_notificacao(titulo, mensagem):
         sys.exit(1)
 
     try:
-        # O SEGREDO PARA O iPHONE EXIBIR:
-        # Mandamos um payload com 'title' e 'body' e forçamos a entrega imediata
+        # Formato 'aps' que a Apple exige para não ignorar
+        payload = {
+            "aps": {
+                "alert": {
+                    "title": titulo,
+                    "body": mensagem
+                },
+                "sound": "default",
+                "interruption-level": "time-sensitive" # Fura o modo silencioso
+            }
+        }
+
         webpush(
             subscription_info=sub,
-            data=json.dumps({
-                "title": titulo,
-                "body": mensagem
-            }),
+            data=json.dumps(payload),
             vapid_private_key=VAPID_PRIVATE_KEY_FILE, 
             vapid_claims={"sub": VAPID_SUBJECT},
-            ttl=86400, # Tenta entregar por até 24h se estiver offline
-            headers={"Urgency": "high"} # Avisa a Apple que é uma notificação prioritária
+            ttl=86400,
+            headers={"Urgency": "high"}
         )
-        print(f"[OK] Notificação enviada: {titulo} — {mensagem}")
-        print("\n⚠️ ATENÇÃO: O iOS costuma entregar Web Push de forma SILENCIOSA.")
-        print("Dê uma olhada na Central de Notificações (arraste de cima para baixo) e veja se ela está lá.")
+        print(f"[OK] Notificação enviada: {titulo}")
     except WebPushException as ex:
         print(f"[ERRO] Falha ao enviar: {ex}")
         if ex.response is not None:

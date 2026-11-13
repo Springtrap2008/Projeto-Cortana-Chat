@@ -25,9 +25,12 @@ self.addEventListener("push", event => {
         vibrate: [200, 100, 200],
         tag: "cortana-" + Date.now(),
         renotify: true,
+        silent: false, // Força a fazer barulho
+        requireInteraction: true, // Fica na tela até o usuário interagir
         data: { url: "./index.html" }
     };
 
+    // Usamos waitUntil para o iOS não cancelar o processo
     event.waitUntil(self.registration.showNotification(data.title, options));
 });
 
