@@ -12,7 +12,6 @@ VAPID_SUBJECT = "mailto:seu-email@exemplo.com"
 def enviar_notificacao(titulo, mensagem):
     if not os.path.exists(VAPID_PRIVATE_KEY_FILE):
         print(f"[ERRO] Arquivo de chave não encontrado: {VAPID_PRIVATE_KEY_FILE}")
-        print("Crie o arquivo private_key.pem e cole a chave privada dentro.")
         sys.exit(1)
 
     try:
@@ -23,14 +22,22 @@ def enviar_notificacao(titulo, mensagem):
         sys.exit(1)
 
     try:
-        # Passamos o CAMINHO do arquivo em vez do texto da chave
+        # O SEGREDO PARA O iPHONE EXIBIR:
+        # Mandamos um payload com 'title' e 'body' e forçamos a entrega imediata
         webpush(
             subscription_info=sub,
-            data=json.dumps({"title": titulo, "body": mensagem}),
+            data=json.dumps({
+                "title": titulo,
+                "body": mensagem
+            }),
             vapid_private_key=VAPID_PRIVATE_KEY_FILE, 
             vapid_claims={"sub": VAPID_SUBJECT},
+            ttl=86400, # Tenta entregar por até 24h se estiver offline
+            headers={"Urgency": "high"} # Avisa a Apple que é uma notificação prioritária
         )
         print(f"[OK] Notificação enviada: {titulo} — {mensagem}")
+        print("\n⚠️ ATENÇÃO: O iOS costuma entregar Web Push de forma SILENCIOSA.")
+        print("Dê uma olhada na Central de Notificações (arraste de cima para baixo) e veja se ela está lá.")
     except WebPushException as ex:
         print(f"[ERRO] Falha ao enviar: {ex}")
         if ex.response is not None:

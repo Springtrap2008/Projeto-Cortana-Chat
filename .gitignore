@@ -1,9 +1,9 @@
 .streamlit/secrets.toml
+private_key.pem
+subscription.json
 users_db.json
 user_data.json
 failed_attempts.json
-subscription.json
-private_key.pem
 __pycache__/
 *.pyc
 .vscode/
