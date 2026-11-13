@@ -90,17 +90,25 @@ const btn = document.getElementById("btn-notif");
 
 async function ativarNotificacoes() {
     try {
+        // 1. Pede permissão
         const permission = await Notification.requestPermission();
         if (permission !== "granted") return;
 
         const reg = await navigator.serviceWorker.ready;
         let sub = await reg.pushManager.getSubscription();
-        if (!sub) {
-            sub = await reg.pushManager.subscribe({
-                userVisibleOnly: true,
-                applicationServerKey: urlBase64ToUint8Array(VAPID_PUBLIC_KEY)
-            });
+
+        // 2. A MÁGICA: Se já existe uma inscrição, destrói ela!
+        if (sub) {
+            await sub.unsubscribe();
+            console.log("Inscrição antiga destruída.");
         }
+
+        // 3. Cria uma nova inscrição com a chave nova do index.html
+        sub = await reg.pushManager.subscribe({
+            userVisibleOnly: true,
+            applicationServerKey: urlBase64ToUint8Array(VAPID_PUBLIC_KEY)
+        });
+
         document.getElementById("sub-json").value = JSON.stringify(sub, null, 2);
         document.getElementById("copy-panel").style.display = "block";
         localStorage.setItem("cortana_subscription", JSON.stringify(sub));
