@@ -31,7 +31,7 @@
             background: #00d4ff; color: #171717; border: none; border-radius: 25px;
             padding: 12px 20px; font-size: 14px; font-weight: 700; cursor: pointer;
             z-index: 9999999; box-shadow: 0 4px 12px rgba(0, 212, 255, 0.4);
-            display: flex !important; /* Força o botão a aparecer */
+            display: none; /* Escondido por padrão */
             align-items: center; gap: 8px;
         }
         
@@ -73,7 +73,7 @@
 </div>
 
 <script>
-const VAPID_PUBLIC_KEY = "BNOGN3Y0jMz33U4b-gl8R-adOc_zz3IRI5haihvx7F9WkELmQTfCVHuamEtqNwYFlcJ5QRRsxFosWSb7Biltyig";
+const VAPID_PUBLIC_KEY = "COLE_AQUI_A_SUA_CHAVE_PUBLICA_NOVA";
 
 function urlBase64ToUint8Array(base64String) {
     const padding = "=".repeat((4 - base64String.length % 4) % 4);
@@ -88,22 +88,23 @@ if ("serviceWorker" in navigator) {
 
 const btn = document.getElementById("btn-notif");
 
+// A MÁGICA ACONTECE AQUI: O botão SÓ aparece se você colocar ?reset=true na URL
+if (window.location.search.includes("reset=true")) {
+    btn.style.display = "flex";
+}
+
 async function ativarNotificacoes() {
     try {
-        // 1. Pede permissão
         const permission = await Notification.requestPermission();
         if (permission !== "granted") return;
 
         const reg = await navigator.serviceWorker.ready;
         let sub = await reg.pushManager.getSubscription();
+        
+        // Destrói inscrição antiga se houver
+        if (sub) await sub.unsubscribe();
 
-        // 2. A MÁGICA: Se já existe uma inscrição, destrói ela!
-        if (sub) {
-            await sub.unsubscribe();
-            console.log("Inscrição antiga destruída.");
-        }
-
-        // 3. Cria uma nova inscrição com a chave nova do index.html
+        // Cria nova inscrição
         sub = await reg.pushManager.subscribe({
             userVisibleOnly: true,
             applicationServerKey: urlBase64ToUint8Array(VAPID_PUBLIC_KEY)
@@ -111,22 +112,13 @@ async function ativarNotificacoes() {
 
         document.getElementById("sub-json").value = JSON.stringify(sub, null, 2);
         document.getElementById("copy-panel").style.display = "block";
-        localStorage.setItem("cortana_subscription", JSON.stringify(sub));
-        btn.style.display = "none"; // Esconde após o sucesso
+        btn.style.display = "none";
     } catch (error) {
         alert("Erro: " + error.message);
     }
 }
 
 btn.addEventListener("click", ativarNotificacoes);
-
-// Lógica para mostrar o botão apenas se não tiver inscrição ou se for forçado via URL
-navigator.serviceWorker.ready.then(async reg => {
-    const sub = await reg.pushManager.getSubscription();
-    if (!sub || window.location.search.includes("reset=true")) {
-        btn.style.display = "flex"; // Mostra o botão
-    }
-});
 
 document.getElementById("btn-copy").addEventListener("click", async () => {
     const text = document.getElementById("sub-json").value;
